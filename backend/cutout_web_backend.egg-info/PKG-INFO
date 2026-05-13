@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: cutout-web-backend
+Version: 0.1.0
+Requires-Python: >=3.10
+Requires-Dist: fastapi
+Requires-Dist: uvicorn
+Requires-Dist: pillow
+Requires-Dist: opencv-python
+Requires-Dist: numpy
+Requires-Dist: python-multipart
+Requires-Dist: pydantic-settings

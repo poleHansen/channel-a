@@ -1,0 +1,7 @@
+export interface AutoSegmentResponse {
+  task_id: string;
+  auto_mask_path?: string;
+  preview_rgba_path?: string;
+  auto_mask?: string;
+  preview_rgba?: string;
+}

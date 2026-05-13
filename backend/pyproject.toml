@@ -1,0 +1,17 @@
+[project]
+name = "cutout-web-backend"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi",
+  "uvicorn",
+  "pillow",
+  "opencv-python",
+  "numpy",
+  "python-multipart",
+  "pydantic-settings",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

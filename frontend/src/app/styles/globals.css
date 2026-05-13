@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f6f1e8;
+  --panel: #fbf7f1;
+  --card: #f1e8dc;
+  --border: #d8ccbb;
+  --text: #1f1d1a;
+  --muted: #6f685f;
+  --accent: #7a8b63;
+  --topbar-height: 88px;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, #fff8ef 0%, #f6f1e8 42%, #ece2d4 100%);
+  font-family: "IBM Plex Sans", "Noto Sans SC", sans-serif;
+}
