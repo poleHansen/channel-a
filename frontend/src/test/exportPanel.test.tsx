@@ -8,6 +8,7 @@ test("renders export format controls", () => {
   useTaskStore.setState({
     currentTaskId: null,
     previewRgbaPath: null,
+    taskHistory: [],
   });
 
   render(<ExportPanel />);
@@ -20,6 +21,7 @@ beforeEach(() => {
   useTaskStore.setState({
     currentTaskId: "task-123",
     previewRgbaPath: "/outputs/task-123/preview_rgba.png",
+    taskHistory: [],
   });
 });
 

@@ -10,6 +10,7 @@ beforeEach(() => {
   useTaskStore.setState({
     currentTaskId: null,
     previewRgbaPath: null,
+    taskHistory: [],
   });
   useEditorStore.setState({
     activeTool: "keep-point",
@@ -29,9 +30,13 @@ test("renders the empty canvas placeholder", () => {
 
 test("renders preview image when a preview path exists", () => {
   act(() => {
-    useTaskStore.getState().setAutoSegmentResult({
-      taskId: "task-123",
+    useTaskStore.getState().setCurrentTask({
+      createdAt: "2026-05-16T01:00:00+00:00",
+      mode: "auto",
       previewRgbaPath: "/outputs/task-123/preview_rgba.png",
+      status: "ready",
+      taskId: "task-123",
+      updatedAt: "2026-05-16T01:00:00+00:00",
     });
   });
 
@@ -39,7 +44,7 @@ test("renders preview image when a preview path exists", () => {
 
   expect(screen.getByRole("img", { name: "Cutout preview" })).toHaveAttribute(
     "src",
-    "/outputs/task-123/preview_rgba.png",
+    expect.stringMatching(/^\/outputs\/task-123\/preview_rgba\.png\?v=\d+$/),
   );
 });
 
@@ -56,9 +61,13 @@ test("clicking the canvas sends a keep-point refine request and refreshes the pr
   );
 
   act(() => {
-    useTaskStore.getState().setAutoSegmentResult({
-      taskId: "task-123",
+    useTaskStore.getState().setCurrentTask({
+      createdAt: "2026-05-16T01:00:00+00:00",
+      mode: "auto",
       previewRgbaPath: "/outputs/task-123/preview_rgba.png",
+      status: "ready",
+      taskId: "task-123",
+      updatedAt: "2026-05-16T01:00:00+00:00",
     });
   });
 

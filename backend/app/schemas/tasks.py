@@ -1,4 +1,10 @@
+from typing import Literal
+
 from pydantic import BaseModel
+
+
+TaskMode = Literal["auto", "manual"]
+TaskStatus = Literal["created", "ready"]
 
 
 class TaskRecord(BaseModel):
@@ -10,3 +16,40 @@ class TaskRecord(BaseModel):
     working_mask_path: str
     preview_rgba_path: str
     project_json_path: str
+
+
+class TaskMetadata(BaseModel):
+    task_id: str
+    created_at: str
+    updated_at: str
+    mode: TaskMode
+    status: TaskStatus
+    original_image_size: dict[str, int] | None
+    current_mask_path: str
+    background_settings: dict[str, object]
+    export_settings: dict[str, object]
+    edit_history: list[dict[str, object]]
+    edge_refinement_enabled: bool
+
+
+class TaskSummary(BaseModel):
+    task_id: str
+    created_at: str
+    updated_at: str
+    mode: TaskMode
+    status: TaskStatus
+    preview_rgba: str
+
+
+class TaskListResponse(BaseModel):
+    tasks: list[TaskSummary]
+
+
+class TaskResponse(BaseModel):
+    task_id: str
+    created_at: str
+    updated_at: str
+    mode: TaskMode
+    status: TaskStatus
+    preview_rgba: str
+

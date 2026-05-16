@@ -1,8 +1,12 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import {
+  autoSegmentExistingTask,
   buildAutoSegmentRequest,
+  createTaskFromUpload,
   exportSegmentResult,
+  getTask,
+  listTasks,
   refineInteractiveSegment,
   uploadAutoSegment,
 } from "../lib/api/client";
@@ -121,4 +125,113 @@ test("exportSegmentResult returns the browser-downloadable output path", async (
       format: "rgba",
     }),
   ).resolves.toBe("/outputs/task-123/result_rgba.png");
+});
+
+test("createTaskFromUpload supports manual mode uploads", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        task_id: "task-manual",
+        preview_rgba: "/outputs/task-manual/preview_rgba.png",
+        created_at: "2026-05-16T00:00:00+00:00",
+        updated_at: "2026-05-16T00:00:00+00:00",
+        mode: "manual",
+        status: "ready",
+      }),
+    }),
+  );
+
+  await expect(
+    createTaskFromUpload(new File(["demo"], "demo.png", { type: "image/png" }), "manual"),
+  ).resolves.toMatchObject({
+    taskId: "task-manual",
+    mode: "manual",
+    previewRgbaPath: "/outputs/task-manual/preview_rgba.png",
+  });
+});
+
+test("listTasks returns recent task history", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        tasks: [
+          {
+            task_id: "task-2",
+            created_at: "2026-05-16T01:00:00+00:00",
+            updated_at: "2026-05-16T01:00:00+00:00",
+            mode: "auto",
+            status: "ready",
+            preview_rgba: "/outputs/task-2/preview_rgba.png",
+          },
+        ],
+      }),
+    }),
+  );
+
+  await expect(listTasks()).resolves.toEqual([
+    {
+      createdAt: "2026-05-16T01:00:00+00:00",
+      mode: "auto",
+      previewRgbaPath: "/outputs/task-2/preview_rgba.png",
+      status: "ready",
+      taskId: "task-2",
+      updatedAt: "2026-05-16T01:00:00+00:00",
+    },
+  ]);
+});
+
+test("getTask maps task details from the backend", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        task_id: "task-9",
+        created_at: "2026-05-16T02:00:00+00:00",
+        updated_at: "2026-05-16T03:00:00+00:00",
+        mode: "manual",
+        status: "ready",
+        preview_rgba: "/outputs/task-9/preview_rgba.png",
+      }),
+    }),
+  );
+
+  await expect(getTask("task-9")).resolves.toEqual({
+    createdAt: "2026-05-16T02:00:00+00:00",
+    mode: "manual",
+    previewRgbaPath: "/outputs/task-9/preview_rgba.png",
+    status: "ready",
+    taskId: "task-9",
+    updatedAt: "2026-05-16T03:00:00+00:00",
+  });
+});
+
+test("autoSegmentExistingTask returns refreshed task details", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        task_id: "task-10",
+        created_at: "2026-05-16T02:00:00+00:00",
+        updated_at: "2026-05-16T04:00:00+00:00",
+        mode: "auto",
+        status: "ready",
+        preview_rgba: "/outputs/task-10/preview_rgba.png",
+      }),
+    }),
+  );
+
+  await expect(autoSegmentExistingTask("task-10")).resolves.toEqual({
+    createdAt: "2026-05-16T02:00:00+00:00",
+    mode: "auto",
+    previewRgbaPath: "/outputs/task-10/preview_rgba.png",
+    status: "ready",
+    taskId: "task-10",
+    updatedAt: "2026-05-16T04:00:00+00:00",
+  });
 });

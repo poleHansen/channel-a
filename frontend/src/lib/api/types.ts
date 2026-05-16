@@ -15,3 +15,17 @@ export interface InteractiveSegmentResponse {
 export interface ExportResponse {
   output_path: string;
 }
+
+export interface TaskResponse {
+  task_id: string;
+  created_at: string;
+  updated_at: string;
+  mode: "auto" | "manual";
+  status: "created" | "ready";
+  preview_rgba_path?: string;
+  preview_rgba?: string;
+}
+
+export interface TaskListResponse {
+  tasks: TaskResponse[];
+}

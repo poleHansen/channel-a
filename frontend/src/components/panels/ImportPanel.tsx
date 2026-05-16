@@ -1,24 +1,24 @@
 import type { ChangeEvent } from "react";
 import { useId, useRef, useState } from "react";
 
-import { uploadAutoSegment } from "../../lib/api/client";
+import { createTaskFromUpload } from "../../lib/api/client";
 import { useEditorStore } from "../../state/editorStore";
 import { useTaskStore } from "../../state/taskStore";
+import type { TaskMode } from "../../types/task";
 
 export function ImportPanel() {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [uploadMode, setUploadMode] = useState<TaskMode>("auto");
   const currentTaskId = useTaskStore((state) => state.currentTaskId);
   const previewRgbaPath = useTaskStore((state) => state.previewRgbaPath);
   const clearAutoSegmentResult = useTaskStore(
     (state) => state.clearAutoSegmentResult,
   );
   const clearPromptPoints = useEditorStore((state) => state.clearPromptPoints);
-  const setAutoSegmentResult = useTaskStore(
-    (state) => state.setAutoSegmentResult,
-  );
+  const setCurrentTask = useTaskStore((state) => state.setCurrentTask);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -33,12 +33,12 @@ export function ImportPanel() {
     clearPromptPoints();
 
     try {
-      const result = await uploadAutoSegment(file);
-      setAutoSegmentResult(result);
+      const result = await createTaskFromUpload(file, uploadMode);
+      setCurrentTask(result);
     } catch (error) {
       clearAutoSegmentResult();
       setErrorMessage(
-        error instanceof Error ? error.message : "Auto segmentation failed.",
+        error instanceof Error ? error.message : "Task creation failed.",
       );
     } finally {
       setIsUploading(false);
@@ -52,7 +52,7 @@ export function ImportPanel() {
         <div>
           <h3 className="text-sm font-semibold">Import image</h3>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Upload a source image to trigger auto segmentation.
+            Choose whether upload should auto cut out immediately or start in manual mode.
           </p>
         </div>
         <button
@@ -63,6 +63,22 @@ export function ImportPanel() {
         >
           {isUploading ? "Uploading..." : "Choose file"}
         </button>
+      </div>
+      <div className="mt-4 flex gap-2">
+        {(["auto", "manual"] as const).map((mode) => (
+          <button
+            className={`rounded-full border px-3 py-1 text-xs transition ${
+              uploadMode === mode
+                ? "border-[var(--text)] bg-[var(--text)] text-[var(--panel)]"
+                : "border-[var(--border)] text-[var(--muted)] hover:bg-white/60"
+            }`}
+            key={mode}
+            onClick={() => setUploadMode(mode)}
+            type="button"
+          >
+            {mode === "auto" ? "Auto cutout" : "Manual Keep/Remove"}
+          </button>
+        ))}
       </div>
       <input
         accept="image/*"
@@ -81,6 +97,9 @@ export function ImportPanel() {
           Preview: {previewRgbaPath}
         </p>
       ) : null}
+      <p className="mt-3 text-xs text-[var(--muted)]">
+        Current upload mode: {uploadMode === "auto" ? "Auto cutout" : "Manual Keep/Remove"}
+      </p>
       {errorMessage ? (
         <p aria-live="assertive" className="mt-3 text-xs text-red-600" role="alert">
           {errorMessage}

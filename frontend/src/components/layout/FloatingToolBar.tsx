@@ -1,12 +1,16 @@
+import { autoSegmentExistingTask } from "../../lib/api/client";
 import { useEditorStore } from "../../state/editorStore";
 import { useTaskStore } from "../../state/taskStore";
+import { useState } from "react";
 
 export function FloatingToolBar() {
   const activeTool = useEditorStore((state) => state.activeTool);
   const clearPromptPoints = useEditorStore((state) => state.clearPromptPoints);
   const setActiveTool = useEditorStore((state) => state.setActiveTool);
   const currentTaskId = useTaskStore((state) => state.currentTaskId);
+  const setCurrentTask = useTaskStore((state) => state.setCurrentTask);
   const hasTask = currentTaskId !== null;
+  const [isAutoCuttingOut, setIsAutoCuttingOut] = useState(false);
 
   const toolButtons = [
     { key: "keep-point", label: "Keep" },
@@ -14,8 +18,31 @@ export function FloatingToolBar() {
     { key: "box", label: "Box" },
   ] as const;
 
+  async function handleAutoCutout() {
+    if (!currentTaskId || isAutoCuttingOut) {
+      return;
+    }
+
+    setIsAutoCuttingOut(true);
+    try {
+      const task = await autoSegmentExistingTask(currentTaskId);
+      clearPromptPoints();
+      setCurrentTask(task);
+    } finally {
+      setIsAutoCuttingOut(false);
+    }
+  }
+
   return (
     <div className="fixed bottom-6 left-1/2 flex -translate-x-1/2 gap-3 rounded-full border border-[var(--border)] bg-[var(--card)] px-4 py-3">
+      <button
+        className="rounded-full px-3 py-1 text-sm text-[var(--text)] transition disabled:cursor-not-allowed disabled:opacity-50"
+        disabled={!hasTask || isAutoCuttingOut}
+        onClick={() => void handleAutoCutout()}
+        type="button"
+      >
+        {isAutoCuttingOut ? "Auto..." : "Auto Cutout"}
+      </button>
       {toolButtons.map((tool) => (
         <button
           className={`rounded-full px-3 py-1 text-sm transition ${
@@ -33,7 +60,7 @@ export function FloatingToolBar() {
       ))}
       <button
         className="rounded-full px-3 py-1 text-sm text-[var(--muted)] transition disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={!hasTask}
+        disabled={!hasTask || isAutoCuttingOut}
         onClick={clearPromptPoints}
         type="button"
       >

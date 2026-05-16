@@ -1,4 +1,5 @@
 import { ImportPanel } from "../panels/ImportPanel";
+import { TaskHistoryPanel } from "../panels/TaskHistoryPanel";
 
 export function LeftPanel() {
   return (
@@ -8,6 +9,7 @@ export function LeftPanel() {
         Import source images and browse version history.
       </p>
       <ImportPanel />
+      <TaskHistoryPanel />
     </aside>
   );
 }

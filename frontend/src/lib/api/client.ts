@@ -1,9 +1,33 @@
 import type { PromptPoint } from "../../types/editor";
+import type { AutoSegmentResult, TaskSummary } from "../../types/task";
 import type {
   AutoSegmentResponse,
   ExportResponse,
   InteractiveSegmentResponse,
+  TaskListResponse,
+  TaskResponse,
 } from "./types";
+
+function mapTaskResponse(payload: TaskResponse): AutoSegmentResult {
+  const previewRgbaPath = payload.preview_rgba_path ?? payload.preview_rgba;
+
+  if (!payload.task_id) {
+    throw new Error("Task response did not include a task id.");
+  }
+
+  if (!previewRgbaPath) {
+    throw new Error("Task response did not include a preview path.");
+  }
+
+  return {
+    createdAt: payload.created_at,
+    mode: payload.mode,
+    previewRgbaPath,
+    status: payload.status,
+    taskId: payload.task_id,
+    updatedAt: payload.updated_at,
+  };
+}
 
 export function buildAutoSegmentRequest(file: File) {
   const body = new FormData();
@@ -45,6 +69,61 @@ export async function uploadAutoSegment(file: File) {
     autoMaskPath,
     previewRgbaPath,
   };
+}
+
+export async function createTaskFromUpload(
+  file: File,
+  mode: "auto" | "manual",
+): Promise<AutoSegmentResult> {
+  const body = new FormData();
+  body.append("file", file);
+  body.append("mode", mode);
+
+  const response = await fetch("/api/tasks", {
+    method: "POST",
+    body,
+  });
+
+  if (!response.ok) {
+    throw new Error("Task creation request failed.");
+  }
+
+  return mapTaskResponse((await response.json()) as TaskResponse);
+}
+
+export async function listTasks(): Promise<TaskSummary[]> {
+  const response = await fetch("/api/tasks");
+
+  if (!response.ok) {
+    throw new Error("Task history request failed.");
+  }
+
+  const payload = (await response.json()) as TaskListResponse;
+  return payload.tasks.map((task) => mapTaskResponse(task));
+}
+
+export async function getTask(taskId: string): Promise<AutoSegmentResult> {
+  const response = await fetch(`/api/tasks/${taskId}`);
+
+  if (!response.ok) {
+    throw new Error("Task load request failed.");
+  }
+
+  return mapTaskResponse((await response.json()) as TaskResponse);
+}
+
+export async function autoSegmentExistingTask(
+  taskId: string,
+): Promise<AutoSegmentResult> {
+  const response = await fetch(`/api/tasks/${taskId}/auto-segment`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Automatic cutout request failed.");
+  }
+
+  return mapTaskResponse((await response.json()) as TaskResponse);
 }
 
 export async function refineInteractiveSegment(payload: {
