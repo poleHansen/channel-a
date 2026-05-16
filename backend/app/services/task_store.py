@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+from pydantic import ValidationError
+
 from app.schemas.tasks import TaskMetadata, TaskMode, TaskRecord
 
 
@@ -54,9 +56,13 @@ class TaskStore:
 
     def read_metadata(self, task_id: str) -> TaskMetadata:
         record = self.build_task_record(task_id)
-        return TaskMetadata.model_validate_json(
-            Path(record.project_json_path).read_text(encoding="utf-8")
-        )
+        project_json_path = Path(record.project_json_path)
+        project_json_text = project_json_path.read_text(encoding="utf-8")
+        try:
+            return TaskMetadata.model_validate_json(project_json_text)
+        except ValidationError:
+            raw_metadata = json.loads(project_json_text)
+            return self._upgrade_legacy_metadata(record, raw_metadata)
 
     def write_metadata(self, record: TaskRecord, metadata: TaskMetadata) -> None:
         project_json_path = Path(record.project_json_path)
@@ -84,10 +90,38 @@ class TaskStore:
     def list_task_metadata(self) -> list[TaskMetadata]:
         metadata_list: list[TaskMetadata] = []
         for project_json_path in self.base_dir.glob("*/project.json"):
-            metadata_list.append(
-                TaskMetadata.model_validate_json(
-                    project_json_path.read_text(encoding="utf-8")
-                )
-            )
+            metadata_list.append(self.read_metadata(project_json_path.parent.name))
         metadata_list.sort(key=lambda metadata: metadata.updated_at, reverse=True)
         return metadata_list
+
+    def _upgrade_legacy_metadata(
+        self,
+        record: TaskRecord,
+        raw_metadata: dict[str, object],
+    ) -> TaskMetadata:
+        created_at = str(raw_metadata["created_at"])
+        preview_rgba_path = Path(record.preview_rgba_path)
+        auto_mask_path = Path(record.auto_mask_path)
+        working_mask_path = Path(record.working_mask_path)
+
+        inferred_mode: TaskMode = "auto" if auto_mask_path.exists() else "manual"
+        inferred_status = (
+            "ready"
+            if preview_rgba_path.exists() or working_mask_path.exists()
+            else raw_metadata.get("status", "created")
+        )
+
+        normalized_metadata = {
+            "task_id": raw_metadata["task_id"],
+            "created_at": created_at,
+            "updated_at": raw_metadata.get("updated_at", created_at),
+            "mode": raw_metadata.get("mode", inferred_mode),
+            "status": inferred_status,
+            "original_image_size": raw_metadata.get("original_image_size"),
+            "current_mask_path": raw_metadata.get("current_mask_path", record.working_mask_path),
+            "background_settings": raw_metadata.get("background_settings", {}),
+            "export_settings": raw_metadata.get("export_settings", {}),
+            "edit_history": raw_metadata.get("edit_history", []),
+            "edge_refinement_enabled": raw_metadata.get("edge_refinement_enabled", False),
+        }
+        return TaskMetadata.model_validate(normalized_metadata)

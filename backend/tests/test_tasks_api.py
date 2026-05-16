@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -89,6 +90,55 @@ def test_list_tasks_returns_recent_tasks_with_preview(tmp_path: Path) -> None:
     assert tasks[0]["preview_rgba"].startswith("/outputs/")
     assert tasks[0]["mode"] == "auto"
     assert tasks[1]["mode"] == "manual"
+
+
+def test_list_tasks_includes_legacy_tasks_after_metadata_upgrade(tmp_path: Path) -> None:
+    stub_segmenter = StubAutoSegmenter()
+    client = TestClient(
+        create_app(
+            settings=Settings(outputs_dir=tmp_path, models_dir=tmp_path / "models"),
+            models=SimpleNamespace(auto_segmenter=stub_segmenter),
+        )
+    )
+
+    legacy_task_dir = tmp_path / "legacy-task"
+    legacy_task_dir.mkdir(parents=True)
+    Image.new("L", (2, 2), color=255).save(legacy_task_dir / "auto_mask.png", format="PNG")
+    Image.new("RGBA", (2, 2), (10, 20, 30, 255)).save(
+        legacy_task_dir / "preview_rgba.png",
+        format="PNG",
+    )
+    Image.new("L", (2, 2), color=255).save(legacy_task_dir / "working_mask.png", format="PNG")
+    (legacy_task_dir / "project.json").write_text(
+        json.dumps(
+            {
+                "task_id": "legacy-task",
+                "created_at": "2026-05-16T11:14:02.773913+00:00",
+                "status": "created",
+                "original_image_size": None,
+                "current_mask_path": str(legacy_task_dir / "working_mask.png"),
+                "background_settings": {},
+                "export_settings": {},
+                "edit_history": [],
+                "edge_refinement_enabled": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    response = client.get("/api/tasks")
+
+    assert response.status_code == 200
+    assert response.json()["tasks"] == [
+        {
+            "task_id": "legacy-task",
+            "created_at": "2026-05-16T11:14:02.773913+00:00",
+            "updated_at": "2026-05-16T11:14:02.773913+00:00",
+            "mode": "auto",
+            "status": "ready",
+            "preview_rgba": "/outputs/legacy-task/preview_rgba.png",
+        }
+    ]
 
 
 def test_get_task_returns_current_preview_and_mode(tmp_path: Path) -> None:
