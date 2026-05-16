@@ -23,3 +23,4 @@ class InteractiveSegmentRequest(BaseModel):
 
 class InteractiveSegmentResponse(BaseModel):
     working_mask_path: str
+    preview_rgba: str

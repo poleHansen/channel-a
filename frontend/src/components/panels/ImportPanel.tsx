@@ -2,6 +2,7 @@ import type { ChangeEvent } from "react";
 import { useId, useRef, useState } from "react";
 
 import { uploadAutoSegment } from "../../lib/api/client";
+import { useEditorStore } from "../../state/editorStore";
 import { useTaskStore } from "../../state/taskStore";
 
 export function ImportPanel() {
@@ -14,6 +15,7 @@ export function ImportPanel() {
   const clearAutoSegmentResult = useTaskStore(
     (state) => state.clearAutoSegmentResult,
   );
+  const clearPromptPoints = useEditorStore((state) => state.clearPromptPoints);
   const setAutoSegmentResult = useTaskStore(
     (state) => state.setAutoSegmentResult,
   );
@@ -28,6 +30,7 @@ export function ImportPanel() {
     setIsUploading(true);
     setErrorMessage(null);
     clearAutoSegmentResult();
+    clearPromptPoints();
 
     try {
       const result = await uploadAutoSegment(file);

@@ -31,6 +31,20 @@ def _build_output_url(task_dir: Path, file_name: str, outputs_dir: Path) -> str:
     return f"/outputs/{relative_path.as_posix()}"
 
 
+def _write_preview_rgba(source_rgb_path: Path, mask_path: Path, preview_rgba_path: Path) -> None:
+    with Image.open(source_rgb_path) as source_image:
+        preview = source_image.convert("RGBA")
+    with Image.open(mask_path) as mask_image:
+        mask = mask_image.convert("L")
+        if mask.size != preview.size:
+            raise HTTPException(
+                status_code=500,
+                detail="Generated mask size does not match normalized source image size",
+            )
+        preview.putalpha(mask)
+    preview.save(preview_rgba_path, format="PNG")
+
+
 @router.post("/auto", response_model=AutoSegmentResponse)
 async def auto_segment(
     request: Request,
@@ -47,19 +61,11 @@ async def auto_segment(
     )
     Path(task.working_mask_path).write_bytes(Path(task.auto_mask_path).read_bytes())
 
-    with Image.open(task.source_rgb_path) as source_image:
-        preview = source_image.convert("RGBA")
-    with Image.open(task.auto_mask_path) as mask_image:
-        mask = mask_image.convert("L")
-        if mask.size != preview.size:
-            raise HTTPException(
-                status_code=500,
-                detail=(
-                    "Generated mask size does not match normalized source image size"
-                ),
-            )
-        preview.putalpha(mask)
-    preview.save(task.preview_rgba_path, format="PNG")
+    _write_preview_rgba(
+        Path(task.source_rgb_path),
+        Path(task.auto_mask_path),
+        Path(task.preview_rgba_path),
+    )
 
     return AutoSegmentResponse(
         task_id=task.task_id,
@@ -84,4 +90,14 @@ def interactive_segment(
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="working_mask.png not found") from exc
 
-    return InteractiveSegmentResponse(working_mask_path=str(working_mask_path))
+    preview_rgba_path = task_dir / "preview_rgba.png"
+    _write_preview_rgba(task_dir / "source_rgb.png", working_mask_path, preview_rgba_path)
+
+    return InteractiveSegmentResponse(
+        working_mask_path=str(working_mask_path),
+        preview_rgba=_build_output_url(
+            task_dir=task_dir,
+            file_name="preview_rgba.png",
+            outputs_dir=request.app.state.settings.outputs_dir,
+        ),
+    )

@@ -7,6 +7,7 @@ interface EditorState {
   promptPoints: PromptPoint[];
   setActiveTool: (tool: ToolMode) => void;
   addPromptPoint: (point: PromptPoint) => void;
+  clearPromptPoints: () => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -15,4 +16,5 @@ export const useEditorStore = create<EditorState>((set) => ({
   setActiveTool: (tool) => set({ activeTool: tool }),
   addPromptPoint: (point) =>
     set((state) => ({ promptPoints: [...state.promptPoints, point] })),
+  clearPromptPoints: () => set({ promptPoints: [] }),
 }));

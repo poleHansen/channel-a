@@ -4,6 +4,7 @@ interface TaskState {
   currentTaskId: string | null;
   previewRgbaPath: string | null;
   clearAutoSegmentResult: () => void;
+  setPreviewRgbaPath: (previewRgbaPath: string) => void;
   setAutoSegmentResult: (payload: {
     taskId: string;
     previewRgbaPath: string;
@@ -18,6 +19,7 @@ export const useTaskStore = create<TaskState>((set) => ({
       currentTaskId: null,
       previewRgbaPath: null,
     }),
+  setPreviewRgbaPath: (previewRgbaPath) => set({ previewRgbaPath }),
   setAutoSegmentResult: ({ taskId, previewRgbaPath }) =>
     set({
       currentTaskId: taskId,

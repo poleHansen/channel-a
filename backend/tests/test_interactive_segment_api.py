@@ -24,6 +24,7 @@ class StubInteractiveSegmenter:
         del source_rgb_path, points, boxes
         if not working_mask_path.exists():
             raise FileNotFoundError(working_mask_path)
+        Image.new("L", (2, 2), color=0).save(working_mask_path, format="PNG")
         return working_mask_path
 
 
@@ -62,6 +63,13 @@ def test_interactive_segment_returns_updated_mask(tmp_path: Path) -> None:
 
     assert response.status_code == 200
     assert response.json()["working_mask_path"].endswith("working_mask.png")
+    assert response.json()["preview_rgba"].endswith("preview_rgba.png")
+
+    preview_response = client.get(response.json()["preview_rgba"])
+    assert preview_response.status_code == 200
+
+    with Image.open(tmp_path / task_id / "preview_rgba.png") as preview:
+        assert preview.getpixel((0, 0)) == (10, 20, 30, 0)
 
 
 def test_interactive_segment_returns_404_for_missing_working_mask(tmp_path: Path) -> None:

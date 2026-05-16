@@ -1,6 +1,10 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { buildAutoSegmentRequest, uploadAutoSegment } from "../lib/api/client";
+import {
+  buildAutoSegmentRequest,
+  refineInteractiveSegment,
+  uploadAutoSegment,
+} from "../lib/api/client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -73,4 +77,28 @@ test("uploadAutoSegment rejects responses without a task id", async () => {
   await expect(
     uploadAutoSegment(new File(["demo"], "demo.png", { type: "image/png" })),
   ).rejects.toThrow("Auto segmentation response did not include a task id.");
+});
+
+test("refineInteractiveSegment maps preview and mask paths from the backend", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        working_mask_path: "working-mask.png",
+        preview_rgba: "preview-rgba.png",
+      }),
+    }),
+  );
+
+  await expect(
+    refineInteractiveSegment({
+      taskId: "task-123",
+      points: [{ x: 12, y: 18, type: "positive" }],
+      boxes: [],
+    }),
+  ).resolves.toEqual({
+    workingMaskPath: "working-mask.png",
+    previewRgbaPath: "preview-rgba.png",
+  });
 });
