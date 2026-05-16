@@ -1,4 +1,5 @@
 import json
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -35,6 +36,7 @@ class TaskStore:
         task_id = uuid4().hex
         task_dir = self.base_dir / task_id
         task_dir.mkdir(parents=True, exist_ok=True)
+        self.clear_temporary_state(exclude_task_id=task_id)
         record = self.build_task_record(task_id)
 
         now = utc_now_iso()
@@ -93,6 +95,15 @@ class TaskStore:
             metadata_list.append(self.read_metadata(project_json_path.parent.name))
         metadata_list.sort(key=lambda metadata: metadata.updated_at, reverse=True)
         return metadata_list
+
+    def clear_temporary_state(self, exclude_task_id: str) -> None:
+        for task_dir in self.base_dir.iterdir():
+            if not task_dir.is_dir() or task_dir.name == exclude_task_id:
+                continue
+
+            temp_dir = task_dir / "temp"
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
     def _upgrade_legacy_metadata(
         self,

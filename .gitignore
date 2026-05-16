@@ -16,3 +16,6 @@ frontend/.vite/
 frontend/node_modules/
 frontend/dist/
 temp/
+docs/
+backend/tests/
+frontend/src/test/
