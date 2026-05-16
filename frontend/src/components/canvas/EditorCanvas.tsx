@@ -223,7 +223,7 @@ export function EditorCanvas() {
   return (
     <div
       aria-label="Editor canvas"
-      className="relative flex h-full min-h-[420px] items-center justify-center overflow-hidden rounded-[24px] border border-dashed border-[var(--border)] bg-[rgba(255,255,255,0.35)] md:min-h-[620px]"
+      className="clay-inset relative flex h-full min-h-[420px] items-center justify-center overflow-hidden rounded-[30px] border border-[var(--border)] md:min-h-[620px] lg:min-h-0 lg:flex-1"
       onClick={handleCanvasClick}
       onMouseDown={handlePointerDown}
       onMouseMove={handlePointerMove}
@@ -232,12 +232,14 @@ export function EditorCanvas() {
       role="region"
     >
       {!previewRgbaPath ? (
-        <p className="relative z-10 text-sm text-[var(--muted)]">Drop an image to begin</p>
+        <p className="relative z-10 rounded-full bg-white/40 px-4 py-2 text-sm text-[var(--muted)]">
+          Drop an image to begin
+        </p>
       ) : (
         <>
           <img
             alt="Cutout preview"
-            className="absolute inset-0 h-full w-full rounded-[24px] object-contain"
+            className="absolute inset-0 h-full w-full rounded-[30px] object-contain"
             onLoad={(event) => {
               const target = event.currentTarget;
               setImageSize({
@@ -249,7 +251,7 @@ export function EditorCanvas() {
           />
           <div
             aria-hidden="true"
-            className={`absolute inset-0 rounded-[24px] ${
+            className={`absolute inset-0 rounded-[30px] ${
               activeTool === "box" ? "cursor-crosshair" : "cursor-cell"
             }`}
           >
@@ -287,14 +289,14 @@ export function EditorCanvas() {
         </>
       )}
       {isRefining ? (
-        <p className="absolute bottom-4 right-4 rounded-full bg-[var(--panel)]/90 px-3 py-1 text-xs text-[var(--muted)]">
+        <p className="clay-button absolute bottom-4 right-4 rounded-full px-3 py-1 text-xs text-[var(--muted)]">
           Refining...
         </p>
       ) : null}
       {errorMessage ? (
         <p
           aria-live="assertive"
-          className="absolute left-4 top-4 rounded-full bg-red-50 px-3 py-1 text-xs text-red-600"
+          className="absolute left-4 top-4 rounded-full bg-[rgba(255,244,244,0.95)] px-3 py-1 text-xs text-[var(--danger)] shadow-[0_10px_18px_rgba(200,93,93,0.16)]"
           role="alert"
         >
           {errorMessage}

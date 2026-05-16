@@ -6,27 +6,36 @@ import { TopBar } from "./TopBar";
 
 export function AppShell() {
   return (
-    <main className="min-h-screen bg-[var(--bg)] text-[var(--text)] lg:h-screen lg:overflow-hidden">
-      <TopBar />
-      <section className="grid min-h-[calc(100vh-88px)] grid-cols-1 gap-4 p-4 lg:h-[calc(100vh-88px)] lg:min-h-0 lg:grid-cols-[280px_1fr_320px] lg:overflow-hidden">
-        <LeftPanel />
-        <div
-          className="rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-6 lg:flex lg:min-h-0 lg:flex-col"
-          data-testid="workspace-panel"
-        >
-          <div className="shrink-0">
-            <h2 className="mb-4 text-xl font-semibold">Cutout Workspace</h2>
-          </div>
+    <main className="min-h-screen bg-[var(--bg)] px-3 pb-28 pt-3 text-[var(--text)] sm:px-4 lg:h-screen lg:overflow-hidden lg:px-4 lg:pb-4 lg:pt-4">
+      <div className="mx-auto flex min-h-full max-w-[1600px] flex-col lg:h-full lg:min-h-0">
+        <TopBar />
+        <section className="grid grid-cols-1 gap-4 pt-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[280px_1fr_320px] lg:overflow-hidden">
+          <LeftPanel />
           <div
-            className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pb-24"
-            data-testid="workspace-scroll-body"
+            className="clay-panel clay-panel-strong rounded-[34px] px-5 py-5 lg:flex lg:min-h-0 lg:flex-col lg:px-6 lg:py-4"
+            data-testid="workspace-panel"
           >
-            <EditorCanvas />
+            <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+              <div>
+                <p className="inline-flex rounded-full bg-white/45 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
+                  Studio Surface
+                </p>
+                <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
+                  Cutout Workspace
+                </h2>
+              </div>
+            </div>
+            <div
+              className="lg:flex lg:min-h-0 lg:flex-1 lg:overflow-hidden"
+              data-testid="workspace-scroll-body"
+            >
+              <EditorCanvas />
+            </div>
+            <FloatingToolBar />
           </div>
-        </div>
-        <RightPanel />
-      </section>
-      <FloatingToolBar />
+          <RightPanel />
+        </section>
+      </div>
     </main>
   );
 }

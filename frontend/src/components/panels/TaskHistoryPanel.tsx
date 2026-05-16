@@ -70,7 +70,7 @@ export function TaskHistoryPanel() {
   }
 
   return (
-    <section className="mt-5 rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.35)] p-4">
+    <section className="clay-card mt-5 rounded-[28px] p-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold">History</h3>
         {isLoading ? <span className="text-xs text-[var(--muted)]">Loading...</span> : null}
@@ -84,10 +84,10 @@ export function TaskHistoryPanel() {
         {taskHistory.map((task) => (
           <button
             aria-label={`Open project saved ${formatHistoryTimestamp(task.updatedAt)}`}
-            className={`w-full rounded-[20px] border p-2 text-left transition ${
+            className={`w-full rounded-[24px] border p-2 text-left transition ${
               currentTaskId === task.taskId
-                ? "border-[var(--text)] bg-white/75 shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
-                : "border-[var(--border)] bg-white/45 hover:bg-white/70"
+                ? "border-[var(--border-strong)] bg-white/70 shadow-[0_18px_36px_rgba(122,96,71,0.12),inset_0_6px_12px_rgba(255,255,255,0.86)]"
+                : "border-[var(--border)] bg-white/46 hover:-translate-y-[1px] hover:bg-white/64"
             }`}
             key={task.taskId}
             onClick={() => void handleOpenTask(task.taskId)}

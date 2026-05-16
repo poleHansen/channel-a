@@ -66,17 +66,20 @@ export function FloatingToolBar() {
   }
 
   return (
-    <div className="fixed bottom-6 left-1/2 flex -translate-x-1/2 gap-3 rounded-full border border-[var(--border)] bg-[var(--card)] px-4 py-3">
+    <div
+      className="clay-toolbar fixed bottom-5 left-1/2 z-30 flex w-[min(calc(100%-1.5rem),760px)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-[999px] px-3 py-3 sm:gap-3 sm:px-4 lg:static lg:bottom-auto lg:left-auto lg:z-10 lg:mt-4 lg:w-full lg:max-w-full lg:translate-x-0"
+      data-testid="floating-toolbar"
+    >
       <button
-        className="rounded-full px-3 py-1 text-sm text-[var(--text)] transition disabled:cursor-not-allowed disabled:opacity-50"
+        className="clay-tool-button clay-button rounded-full px-3 py-2 text-sm font-medium text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
         disabled={!hasTask || isAutoCuttingOut}
         onClick={() => void handleAutoCutout()}
         type="button"
-        >
-          {isAutoCuttingOut ? "Auto..." : "Auto Cutout"}
-        </button>
+      >
+        {isAutoCuttingOut ? "Auto..." : "Auto Cutout"}
+      </button>
       <button
-        className="rounded-full px-3 py-1 text-sm text-[var(--text)] transition disabled:cursor-not-allowed disabled:opacity-50"
+        className="clay-tool-button clay-button rounded-full px-3 py-2 text-sm font-medium text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
         disabled={!hasTask || !canUndo || isAutoCuttingOut}
         onClick={() => void handleUndo()}
         type="button"
@@ -84,7 +87,7 @@ export function FloatingToolBar() {
         Undo
       </button>
       <button
-        className="rounded-full px-3 py-1 text-sm text-[var(--text)] transition disabled:cursor-not-allowed disabled:opacity-50"
+        className="clay-tool-button clay-button rounded-full px-3 py-2 text-sm font-medium text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
         disabled={!hasTask || !canRedo || isAutoCuttingOut}
         onClick={() => void handleRedo()}
         type="button"
@@ -93,9 +96,9 @@ export function FloatingToolBar() {
       </button>
       {toolButtons.map((tool) => (
         <button
-          className={`rounded-full px-3 py-1 text-sm transition ${
+          className={`clay-tool-button clay-button rounded-full px-3 py-2 text-sm font-medium ${
             activeTool === tool.key
-              ? "bg-[var(--text)] text-[var(--panel)]"
+              ? "border-[rgba(153,110,80,0.32)] bg-[linear-gradient(180deg,#c59b7c,#b48463)] text-white shadow-[inset_0_4px_8px_rgba(255,255,255,0.25),inset_0_-8px_14px_rgba(102,68,42,0.22)]"
               : "text-[var(--text)]"
           } disabled:cursor-not-allowed disabled:opacity-50`}
           disabled={!hasTask}
@@ -107,7 +110,7 @@ export function FloatingToolBar() {
         </button>
       ))}
       <button
-        className="rounded-full px-3 py-1 text-sm text-[var(--muted)] transition disabled:cursor-not-allowed disabled:opacity-50"
+        className="clay-tool-button clay-button rounded-full px-3 py-2 text-sm font-medium text-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-50"
         disabled={!hasTask || isAutoCuttingOut}
         onClick={clearPromptPoints}
         type="button"

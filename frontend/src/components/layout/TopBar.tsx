@@ -26,21 +26,25 @@ export function TopBar() {
   }
 
   return (
-    <header className="flex min-h-[var(--topbar-height)] items-center justify-between px-6">
-      <div>
-        <p className="text-sm uppercase tracking-[0.24em] text-[var(--muted)]">
-          Offline editor
-        </p>
-        <h1 className="text-2xl font-semibold">Warm Cutout Studio</h1>
+    <header className="clay-panel rounded-[36px] px-5 py-3 sm:px-6">
+      <div className="flex min-h-[var(--topbar-height)] flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <p className="inline-flex rounded-full bg-white/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
+            Offline editor
+          </p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-[-0.03em] sm:text-[2rem]">
+            Warm Cutout Studio
+          </h1>
+        </div>
+        <button
+          className="clay-button clay-button-accent rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={!currentTaskId || isAutoCuttingOut}
+          onClick={() => void handleAutoCutout()}
+          type="button"
+        >
+          {isAutoCuttingOut ? "Auto..." : "Auto Cutout"}
+        </button>
       </div>
-      <button
-        className="rounded-full bg-[var(--accent)] px-5 py-3 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={!currentTaskId || isAutoCuttingOut}
-        onClick={() => void handleAutoCutout()}
-        type="button"
-      >
-        {isAutoCuttingOut ? "Auto..." : "Auto Cutout"}
-      </button>
     </header>
   );
 }
