@@ -77,3 +77,33 @@ def test_export_endpoint_rejects_task_id_path_traversal(tmp_path: Path) -> None:
 
     assert response.status_code == 400
     assert response.json() == {"detail": "Invalid task_id"}
+
+
+def test_export_endpoint_returns_browser_accessible_output_url(tmp_path: Path) -> None:
+    settings = Settings(outputs_dir=tmp_path, models_dir=tmp_path / "models")
+    app = create_app(settings=settings, models=SimpleNamespace())
+    client = TestClient(app)
+
+    task_dir = tmp_path / "task-123"
+    task_dir.mkdir(parents=True)
+
+    source = Image.new("RGB", (2, 1), (10, 20, 30))
+    source.save(task_dir / "source_rgb.png")
+
+    mask = Image.new("L", (2, 1), 255)
+    mask.save(task_dir / "working_mask.png")
+
+    response = client.post(
+        "/api/export",
+        json={
+            "task_id": "task-123",
+            "format": "rgba",
+            "background_hex": "#FFFFFF",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["output_path"] == "/outputs/task-123/result_rgba.png"
+
+    download_response = client.get(response.json()["output_path"])
+    assert download_response.status_code == 200

@@ -1,5 +1,9 @@
 import type { PromptPoint } from "../../types/editor";
-import type { AutoSegmentResponse, InteractiveSegmentResponse } from "./types";
+import type {
+  AutoSegmentResponse,
+  ExportResponse,
+  InteractiveSegmentResponse,
+} from "./types";
 
 export function buildAutoSegmentRequest(file: File) {
   const body = new FormData();
@@ -75,4 +79,34 @@ export async function refineInteractiveSegment(payload: {
     workingMaskPath: result.working_mask_path,
     previewRgbaPath,
   };
+}
+
+export async function exportSegmentResult(payload: {
+  taskId: string;
+  format: "rgb" | "rgba";
+  backgroundHex?: string;
+}) {
+  const response = await fetch("/api/export", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      task_id: payload.taskId,
+      format: payload.format,
+      background_hex: payload.backgroundHex ?? "#FFFFFF",
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Export request failed.");
+  }
+
+  const result = (await response.json()) as ExportResponse;
+
+  if (!result.output_path) {
+    throw new Error("Export response did not include an output path.");
+  }
+
+  return result.output_path;
 }

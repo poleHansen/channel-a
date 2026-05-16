@@ -2,6 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 
 import {
   buildAutoSegmentRequest,
+  exportSegmentResult,
   refineInteractiveSegment,
   uploadAutoSegment,
 } from "../lib/api/client";
@@ -101,4 +102,23 @@ test("refineInteractiveSegment maps preview and mask paths from the backend", as
     workingMaskPath: "working-mask.png",
     previewRgbaPath: "preview-rgba.png",
   });
+});
+
+test("exportSegmentResult returns the browser-downloadable output path", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        output_path: "/outputs/task-123/result_rgba.png",
+      }),
+    }),
+  );
+
+  await expect(
+    exportSegmentResult({
+      taskId: "task-123",
+      format: "rgba",
+    }),
+  ).resolves.toBe("/outputs/task-123/result_rgba.png");
 });

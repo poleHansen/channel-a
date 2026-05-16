@@ -18,6 +18,11 @@ def _resolve_task_dir(outputs_dir, task_id: str):
     return task_dir
 
 
+def _build_output_url(task_dir, output_path, outputs_dir) -> str:
+    relative_path = output_path.resolve().relative_to(outputs_dir.resolve())
+    return f"/outputs/{relative_path.as_posix()}"
+
+
 @router.post("", response_model=ExportResponse)
 def export_task(payload: ExportRequest, request: Request) -> ExportResponse:
     task_dir = _resolve_task_dir(request.app.state.settings.outputs_dir, payload.task_id)
@@ -36,4 +41,6 @@ def export_task(payload: ExportRequest, request: Request) -> ExportResponse:
             payload.background_hex,
         )
 
-    return ExportResponse(output_path=str(output_path))
+    return ExportResponse(
+        output_path=_build_output_url(task_dir, output_path, request.app.state.settings.outputs_dir)
+    )

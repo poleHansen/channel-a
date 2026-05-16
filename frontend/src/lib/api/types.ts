@@ -11,3 +11,7 @@ export interface InteractiveSegmentResponse {
   preview_rgba_path?: string;
   preview_rgba?: string;
 }
+
+export interface ExportResponse {
+  output_path: string;
+}
