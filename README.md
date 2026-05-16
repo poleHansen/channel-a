@@ -123,6 +123,9 @@ If you are targeting Windows with GPU inference, the SAM 2 project currently rec
 Start the local preview workflow from the repository root:
 
 ```powershell
+.\.venv\Scripts\Activate.ps1
+$env:CUTOUT_MODELS_DIR="D:\code\channel-a\models"
+$env:CUTOUT_OUTPUTS_DIR="D:\code\channel-a\outputs"
 .\launch.ps1
 ```
 

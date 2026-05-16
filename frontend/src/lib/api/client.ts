@@ -21,6 +21,8 @@ function mapTaskResponse(payload: TaskResponse): AutoSegmentResult {
 
   return {
     createdAt: payload.created_at,
+    canRedo: payload.can_redo ?? false,
+    canUndo: payload.can_undo ?? false,
     mode: payload.mode,
     previewRgbaPath,
     status: payload.status,
@@ -126,6 +128,30 @@ export async function autoSegmentExistingTask(
   return mapTaskResponse((await response.json()) as TaskResponse);
 }
 
+export async function undoTaskEdit(taskId: string): Promise<AutoSegmentResult> {
+  const response = await fetch(`/api/tasks/${taskId}/undo`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Undo request failed.");
+  }
+
+  return mapTaskResponse((await response.json()) as TaskResponse);
+}
+
+export async function redoTaskEdit(taskId: string): Promise<AutoSegmentResult> {
+  const response = await fetch(`/api/tasks/${taskId}/redo`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Redo request failed.");
+  }
+
+  return mapTaskResponse((await response.json()) as TaskResponse);
+}
+
 export async function refineInteractiveSegment(payload: {
   taskId: string;
   points: PromptPoint[];
@@ -155,6 +181,8 @@ export async function refineInteractiveSegment(payload: {
   }
 
   return {
+    canRedo: result.can_redo ?? false,
+    canUndo: result.can_undo ?? false,
     workingMaskPath: result.working_mask_path,
     previewRgbaPath,
   };

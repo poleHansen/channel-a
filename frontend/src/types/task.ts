@@ -4,6 +4,8 @@ export type TaskStatus = "created" | "ready";
 export interface AutoSegmentResult {
   taskId: string;
   autoMaskPath?: string;
+  canRedo: boolean;
+  canUndo: boolean;
   createdAt: string;
   mode: TaskMode;
   previewRgbaPath: string;
@@ -12,6 +14,8 @@ export interface AutoSegmentResult {
 }
 
 export interface TaskSummary {
+  canRedo: boolean;
+  canUndo: boolean;
   createdAt: string;
   mode: TaskMode;
   previewRgbaPath: string;

@@ -24,3 +24,5 @@ class InteractiveSegmentRequest(BaseModel):
 class InteractiveSegmentResponse(BaseModel):
     working_mask_path: str
     preview_rgba: str
+    can_undo: bool = False
+    can_redo: bool = False

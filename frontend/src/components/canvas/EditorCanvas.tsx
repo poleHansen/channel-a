@@ -54,6 +54,7 @@ export function EditorCanvas() {
   const promptPoints = useEditorStore((state) => state.promptPoints);
   const currentTaskId = useTaskStore((state) => state.currentTaskId);
   const previewRgbaPath = useTaskStore((state) => state.previewRgbaPath);
+  const setEditAvailability = useTaskStore((state) => state.setEditAvailability);
   const setPreviewRgbaPath = useTaskStore((state) => state.setPreviewRgbaPath);
   const [displayBox, setDisplayBox] = useState<DisplayBox | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -124,6 +125,7 @@ export function EditorCanvas() {
         boxes,
       });
       setPreviewRgbaPath(withCacheBust(result.previewRgbaPath));
+      setEditAvailability(result.canUndo, result.canRedo);
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Interactive refinement failed.",

@@ -55,16 +55,28 @@ async def auto_segment(
     original_path = Path(task.original_path)
     original_path.write_bytes(await file.read())
     normalize_upload_to_rgb(original_path, Path(task.source_rgb_path))
+    with Image.open(task.source_rgb_path) as source_image:
+        width, height = source_image.size
+        Image.new("L", source_image.size, color=255).save(task.working_mask_path, format="PNG")
+    task_store.push_history_snapshot(task.task_id)
     request.app.state.models.auto_segmenter.segment(
         Path(task.source_rgb_path),
         Path(task.auto_mask_path),
     )
     Path(task.working_mask_path).write_bytes(Path(task.auto_mask_path).read_bytes())
+    task_store.push_history_snapshot(task.task_id)
 
     _write_preview_rgba(
         Path(task.source_rgb_path),
         Path(task.auto_mask_path),
         Path(task.preview_rgba_path),
+    )
+    task_store.update_metadata(
+        task.task_id,
+        mode="auto",
+        status="ready",
+        original_image_size={"width": width, "height": height},
+        current_mask_path=task.working_mask_path,
     )
 
     return AutoSegmentResponse(
@@ -80,18 +92,24 @@ def interactive_segment(
     request: Request,
 ) -> InteractiveSegmentResponse:
     task_dir = _resolve_task_dir(request.app.state.settings.outputs_dir, payload.task_id)
+    task_store = TaskStore(request.app.state.settings.outputs_dir)
+    working_mask_input_path = task_dir / "working_mask.png"
+    if not working_mask_input_path.exists():
+        raise HTTPException(status_code=404, detail="working_mask.png not found")
+
     try:
         working_mask_path = request.app.state.models.interactive_segmenter.refine(
             task_dir / "source_rgb.png",
-            task_dir / "working_mask.png",
+            working_mask_input_path,
             payload.points,
             payload.boxes,
         )
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="working_mask.png not found") from exc
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     preview_rgba_path = task_dir / "preview_rgba.png"
     _write_preview_rgba(task_dir / "source_rgb.png", working_mask_path, preview_rgba_path)
+    metadata = task_store.push_history_snapshot(payload.task_id)
 
     return InteractiveSegmentResponse(
         working_mask_path=str(working_mask_path),
@@ -100,4 +118,6 @@ def interactive_segment(
             file_name="preview_rgba.png",
             outputs_dir=request.app.state.settings.outputs_dir,
         ),
+        can_undo=TaskStore.can_undo(metadata),
+        can_redo=TaskStore.can_redo(metadata),
     )

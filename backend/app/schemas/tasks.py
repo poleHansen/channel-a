@@ -29,6 +29,7 @@ class TaskMetadata(BaseModel):
     background_settings: dict[str, object]
     export_settings: dict[str, object]
     edit_history: list[dict[str, object]]
+    history_cursor: int = -1
     edge_refinement_enabled: bool
 
 
@@ -39,6 +40,8 @@ class TaskSummary(BaseModel):
     mode: TaskMode
     status: TaskStatus
     preview_rgba: str
+    can_undo: bool = False
+    can_redo: bool = False
 
 
 class TaskListResponse(BaseModel):
@@ -52,4 +55,5 @@ class TaskResponse(BaseModel):
     mode: TaskMode
     status: TaskStatus
     preview_rgba: str
-
+    can_undo: bool = False
+    can_redo: bool = False

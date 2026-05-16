@@ -24,6 +24,8 @@ def _task_response_from_metadata(
         mode=metadata.mode,
         status=metadata.status,
         preview_rgba=_build_output_url(task_dir, "preview_rgba.png", outputs_dir),
+        can_undo=TaskStore.can_undo(metadata),
+        can_redo=TaskStore.can_redo(metadata),
     )
 
 
@@ -67,6 +69,7 @@ def _run_auto_segment_for_task(request: Request, task_id: str) -> TaskResponse:
         Path(task.working_mask_path),
         Path(task.preview_rgba_path),
     )
+    task_store.push_history_snapshot(task_id)
     return _finalize_task_metadata(
         task_store,
         task_id,
@@ -88,13 +91,14 @@ async def create_task(
     original_path = Path(task.original_path)
     original_path.write_bytes(await file.read())
     normalize_upload_to_rgb(original_path, Path(task.source_rgb_path))
+    with Image.open(task.source_rgb_path) as source_image:
+        Image.new("L", source_image.size, color=255).save(task.working_mask_path, format="PNG")
+    task_store.push_history_snapshot(task.task_id)
 
     if mode == "auto":
         return _run_auto_segment_for_task(request, task.task_id)
 
     _write_manual_preview(Path(task.source_rgb_path), Path(task.preview_rgba_path))
-    with Image.open(task.source_rgb_path) as source_image:
-        Image.new("L", source_image.size, color=255).save(task.working_mask_path, format="PNG")
 
     return _finalize_task_metadata(
         task_store,
@@ -120,6 +124,8 @@ def list_tasks(request: Request) -> TaskListResponse:
                 "preview_rgba.png",
                 task_store.base_dir,
             ),
+            can_undo=TaskStore.can_undo(metadata),
+            can_redo=TaskStore.can_redo(metadata),
         )
         for metadata in task_store.list_task_metadata()
     ]
@@ -141,3 +147,39 @@ def auto_segment_existing_task(task_id: str, request: Request) -> TaskResponse:
     if not (task_dir / "source_rgb.png").exists():
         raise HTTPException(status_code=404, detail="source_rgb.png not found")
     return _run_auto_segment_for_task(request, task_id)
+
+
+@router.post("/{task_id}/undo", response_model=TaskResponse)
+def undo_task_edit(task_id: str, request: Request) -> TaskResponse:
+    task_store = TaskStore(request.app.state.settings.outputs_dir)
+    _resolve_task_dir(task_store.base_dir, task_id)
+    try:
+        metadata = task_store.restore_history_snapshot(task_id, direction=-1)
+    except IndexError as exc:
+        raise HTTPException(status_code=409, detail="No earlier history state") from exc
+
+    task = task_store.build_task_record(task_id)
+    _write_preview_rgba(
+        Path(task.source_rgb_path),
+        Path(task.working_mask_path),
+        Path(task.preview_rgba_path),
+    )
+    return _task_response_from_metadata(task_id, task_store.base_dir, metadata)
+
+
+@router.post("/{task_id}/redo", response_model=TaskResponse)
+def redo_task_edit(task_id: str, request: Request) -> TaskResponse:
+    task_store = TaskStore(request.app.state.settings.outputs_dir)
+    _resolve_task_dir(task_store.base_dir, task_id)
+    try:
+        metadata = task_store.restore_history_snapshot(task_id, direction=1)
+    except IndexError as exc:
+        raise HTTPException(status_code=409, detail="No later history state") from exc
+
+    task = task_store.build_task_record(task_id)
+    _write_preview_rgba(
+        Path(task.source_rgb_path),
+        Path(task.working_mask_path),
+        Path(task.preview_rgba_path),
+    )
+    return _task_response_from_metadata(task_id, task_store.base_dir, metadata)

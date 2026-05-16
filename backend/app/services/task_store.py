@@ -51,6 +51,7 @@ class TaskStore:
             background_settings={},
             export_settings={},
             edit_history=[],
+            history_cursor=-1,
             edge_refinement_enabled=False,
         )
         self.write_metadata(record, metadata)
@@ -96,6 +97,59 @@ class TaskStore:
         metadata_list.sort(key=lambda metadata: metadata.updated_at, reverse=True)
         return metadata_list
 
+    def push_history_snapshot(self, task_id: str) -> TaskMetadata:
+        record = self.build_task_record(task_id)
+        metadata = self.read_metadata(task_id)
+        working_mask_path = Path(record.working_mask_path)
+        if not working_mask_path.exists():
+            raise FileNotFoundError(working_mask_path)
+
+        history_dir = Path(record.task_dir) / "temp" / "history"
+        history_dir.mkdir(parents=True, exist_ok=True)
+
+        next_history = metadata.edit_history[: metadata.history_cursor + 1]
+        for stale_entry in metadata.edit_history[metadata.history_cursor + 1 :]:
+            stale_mask_path = Path(str(stale_entry.get("mask_path", "")))
+            if stale_mask_path.exists():
+                stale_mask_path.unlink()
+
+        snapshot_path = history_dir / f"{len(next_history):04d}.png"
+        shutil.copyfile(working_mask_path, snapshot_path)
+        next_history.append({"mask_path": str(snapshot_path)})
+
+        return self.update_metadata(
+            task_id,
+            current_mask_path=record.working_mask_path,
+            edit_history=next_history,
+            history_cursor=len(next_history) - 1,
+        )
+
+    def restore_history_snapshot(self, task_id: str, direction: int) -> TaskMetadata:
+        record = self.build_task_record(task_id)
+        metadata = self.read_metadata(task_id)
+        next_cursor = metadata.history_cursor + direction
+        if next_cursor < 0 or next_cursor >= len(metadata.edit_history):
+            raise IndexError("History cursor out of bounds")
+
+        snapshot_path = Path(str(metadata.edit_history[next_cursor].get("mask_path", "")))
+        if not snapshot_path.exists():
+            raise FileNotFoundError(snapshot_path)
+
+        shutil.copyfile(snapshot_path, record.working_mask_path)
+        return self.update_metadata(
+            task_id,
+            current_mask_path=record.working_mask_path,
+            history_cursor=next_cursor,
+        )
+
+    @staticmethod
+    def can_undo(metadata: TaskMetadata) -> bool:
+        return metadata.history_cursor > 0
+
+    @staticmethod
+    def can_redo(metadata: TaskMetadata) -> bool:
+        return 0 <= metadata.history_cursor < len(metadata.edit_history) - 1
+
     def clear_temporary_state(self, exclude_task_id: str) -> None:
         for task_dir in self.base_dir.iterdir():
             if not task_dir.is_dir() or task_dir.name == exclude_task_id:
@@ -133,6 +187,10 @@ class TaskStore:
             "background_settings": raw_metadata.get("background_settings", {}),
             "export_settings": raw_metadata.get("export_settings", {}),
             "edit_history": raw_metadata.get("edit_history", []),
+            "history_cursor": raw_metadata.get(
+                "history_cursor",
+                len(raw_metadata.get("edit_history", [])) - 1,
+            ),
             "edge_refinement_enabled": raw_metadata.get("edge_refinement_enabled", False),
         }
         return TaskMetadata.model_validate(normalized_metadata)

@@ -10,6 +10,8 @@ export interface InteractiveSegmentResponse {
   working_mask_path: string;
   preview_rgba_path?: string;
   preview_rgba?: string;
+  can_undo?: boolean;
+  can_redo?: boolean;
 }
 
 export interface ExportResponse {
@@ -24,6 +26,8 @@ export interface TaskResponse {
   status: "created" | "ready";
   preview_rgba_path?: string;
   preview_rgba?: string;
+  can_undo?: boolean;
+  can_redo?: boolean;
 }
 
 export interface TaskListResponse {
