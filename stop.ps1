@@ -3,6 +3,21 @@ $logsDir = Join-Path $root "logs"
 $frontendPidFile = Join-Path $logsDir "frontend.pid"
 $backendPidFile = Join-Path $logsDir "backend.pid"
 
+function Stop-MatchingProcesses {
+  param(
+    [string]$Workdir,
+    [string]$CommandMarker
+  )
+
+  Get-CimInstance Win32_Process | Where-Object {
+    $_.CommandLine -and
+    $_.CommandLine -like "*$CommandMarker*" -and
+    $_.CommandLine -like "*$Workdir*"
+  } | ForEach-Object {
+    Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+  }
+}
+
 function Stop-TrackedProcess {
   param(
     [string]$MetadataPath
@@ -39,3 +54,6 @@ function Stop-TrackedProcess {
 
 Stop-TrackedProcess -MetadataPath $frontendPidFile
 Stop-TrackedProcess -MetadataPath $backendPidFile
+
+Stop-MatchingProcesses -Workdir (Join-Path $root "frontend") -CommandMarker "vite.js"
+Stop-MatchingProcesses -Workdir (Join-Path $root "backend") -CommandMarker "app.main:app"

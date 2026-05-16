@@ -42,6 +42,21 @@ function Write-ProcessMetadata {
   $metadata | ConvertTo-Json | Set-Content -Path $Path -Encoding utf8
 }
 
+function Stop-MatchingProcesses {
+  param(
+    [string]$Workdir,
+    [string]$CommandMarker
+  )
+
+  Get-CimInstance Win32_Process | Where-Object {
+    $_.CommandLine -and
+    $_.CommandLine -like "*$CommandMarker*" -and
+    $_.CommandLine -like "*$Workdir*"
+  } | ForEach-Object {
+    Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+  }
+}
+
 function Wait-ForUrl {
   param(
     [string]$Url,
@@ -60,6 +75,9 @@ function Wait-ForUrl {
 
   return $false
 }
+
+Stop-MatchingProcesses -Workdir $backendWorkdir -CommandMarker "app.main:app"
+Stop-MatchingProcesses -Workdir $frontendWorkdir -CommandMarker "vite.js"
 
 $backend = Start-Process -FilePath $backendExecutable `
   -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000" `
