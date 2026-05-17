@@ -5,13 +5,16 @@ import { useTaskStore } from "../../state/taskStore";
 
 export function ExportPanel() {
   const currentTaskId = useTaskStore((state) => state.currentTaskId);
+  const selectedTaskIds = useTaskStore((state) => state.selectedTaskIds);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isExportingFormat, setIsExportingFormat] = useState<"rgb" | "rgba" | null>(
     null,
   );
 
   async function handleExport(format: "rgb" | "rgba") {
-    if (!currentTaskId || isExportingFormat) {
+    const taskIds = selectedTaskIds.length > 0 ? selectedTaskIds : currentTaskId ? [currentTaskId] : [];
+
+    if (taskIds.length === 0 || isExportingFormat) {
       return;
     }
 
@@ -19,15 +22,17 @@ export function ExportPanel() {
     setErrorMessage(null);
 
     try {
-      const outputPath = await exportSegmentResult({
-        taskId: currentTaskId,
-        format,
-      });
-      const anchor = document.createElement("a");
-      anchor.href = outputPath;
-      anchor.download = outputPath.split("/").pop() ?? "";
-      anchor.click();
-      anchor.remove();
+      for (const taskId of taskIds) {
+        const outputPath = await exportSegmentResult({
+          taskId,
+          format,
+        });
+        const anchor = document.createElement("a");
+        anchor.href = outputPath;
+        anchor.download = outputPath.split("/").pop() ?? "";
+        anchor.click();
+        anchor.remove();
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Export failed.");
     } finally {
@@ -35,7 +40,8 @@ export function ExportPanel() {
     }
   }
 
-  const isDisabled = currentTaskId === null || isExportingFormat !== null;
+  const exportTargetCount = selectedTaskIds.length > 0 ? selectedTaskIds.length : currentTaskId ? 1 : 0;
+  const isDisabled = exportTargetCount === 0 || isExportingFormat !== null;
 
   return (
     <section className="clay-card mt-5 rounded-[28px] p-4">
@@ -59,9 +65,11 @@ export function ExportPanel() {
         </button>
       </div>
       <p className="mt-3 text-xs text-[var(--muted)]">
-        {currentTaskId
-          ? "Choose a format to download the current cutout result."
-          : "Import and refine an image before exporting."}
+        {exportTargetCount === 0
+          ? "Import and refine an image before exporting."
+          : exportTargetCount === 1 && selectedTaskIds.length === 0
+            ? "Choose a format to download the current cutout result."
+            : `Choose a format to download ${exportTargetCount} selected projects.`}
       </p>
       {errorMessage ? (
         <p aria-live="assertive" className="mt-3 text-xs text-red-600" role="alert">

@@ -12,10 +12,13 @@ interface TaskState {
   canUndo: boolean;
   currentTaskId: string | null;
   previewRgbaPath: string | null;
+  selectedTaskIds: string[];
   taskHistory: TaskSummary[];
   clearAutoSegmentResult: () => void;
+  clearSelectedTasks: () => void;
   setEditAvailability: (canUndo: boolean, canRedo: boolean) => void;
   setPreviewRgbaPath: (previewRgbaPath: string) => void;
+  toggleSelectedTask: (taskId: string) => void;
   setTaskHistory: (taskHistory: TaskSummary[]) => void;
   setCurrentTask: (task: AutoSegmentResult) => void;
 }
@@ -25,6 +28,7 @@ export const useTaskStore = create<TaskState>((set) => ({
   canUndo: false,
   currentTaskId: null,
   previewRgbaPath: null,
+  selectedTaskIds: [],
   taskHistory: [],
   clearAutoSegmentResult: () =>
     set({
@@ -33,8 +37,15 @@ export const useTaskStore = create<TaskState>((set) => ({
       currentTaskId: null,
       previewRgbaPath: null,
     }),
+  clearSelectedTasks: () => set({ selectedTaskIds: [] }),
   setEditAvailability: (canUndo, canRedo) => set({ canUndo, canRedo }),
   setPreviewRgbaPath: (previewRgbaPath) => set({ previewRgbaPath }),
+  toggleSelectedTask: (taskId) =>
+    set((state) => ({
+      selectedTaskIds: state.selectedTaskIds.includes(taskId)
+        ? state.selectedTaskIds.filter((item) => item !== taskId)
+        : [...state.selectedTaskIds, taskId],
+    })),
   setTaskHistory: (taskHistory) => set({ taskHistory }),
   setCurrentTask: (task) =>
     set((state) => {
@@ -58,6 +69,9 @@ export const useTaskStore = create<TaskState>((set) => ({
         canUndo: task.canUndo,
         currentTaskId: task.taskId,
         previewRgbaPath: withCacheBust(task.previewRgbaPath),
+        selectedTaskIds: state.selectedTaskIds.filter((taskId) =>
+          nextHistory.some((item) => item.taskId === taskId),
+        ),
         taskHistory: nextHistory,
       };
     }),

@@ -21,9 +21,11 @@ function formatHistoryTimestamp(value: string): string {
 export function TaskHistoryPanel() {
   const clearPromptPoints = useEditorStore((state) => state.clearPromptPoints);
   const currentTaskId = useTaskStore((state) => state.currentTaskId);
+  const selectedTaskIds = useTaskStore((state) => state.selectedTaskIds);
   const setCurrentTask = useTaskStore((state) => state.setCurrentTask);
   const setTaskHistory = useTaskStore((state) => state.setTaskHistory);
   const taskHistory = useTaskStore((state) => state.taskHistory);
+  const toggleSelectedTask = useTaskStore((state) => state.toggleSelectedTask);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -82,38 +84,54 @@ export function TaskHistoryPanel() {
       ) : null}
       <div className="mt-3 grid grid-cols-1 gap-3">
         {taskHistory.map((task) => (
-          <button
-            aria-label={`Open project saved ${formatHistoryTimestamp(task.updatedAt)}`}
-            className={`w-full rounded-[24px] border p-2 text-left transition ${
+          <div
+            className={`w-full rounded-[24px] border p-2 transition ${
               currentTaskId === task.taskId
                 ? "border-[var(--border-strong)] bg-white/70 shadow-[0_18px_36px_rgba(122,96,71,0.12),inset_0_6px_12px_rgba(255,255,255,0.86)]"
                 : "border-[var(--border)] bg-white/46 hover:-translate-y-[1px] hover:bg-white/64"
             }`}
             key={task.taskId}
-            onClick={() => void handleOpenTask(task.taskId)}
-            type="button"
           >
-            <div className="overflow-hidden rounded-[16px] border border-black/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(231,236,241,0.85))]">
-              <img
-                alt={`Project preview ${formatHistoryTimestamp(task.updatedAt)}`}
-                className="aspect-[4/3] w-full object-cover"
-                src={task.previewRgbaPath}
-              />
-            </div>
-            <div className="mt-2 flex items-center justify-between gap-3 px-1">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
-                  {task.mode === "auto" ? "Auto" : "Manual"}
-                </p>
-                <p className="mt-1 text-sm text-[var(--text)]">
-                  {formatHistoryTimestamp(task.updatedAt)}
-                </p>
-              </div>
+            <div className="flex items-center justify-between gap-3 px-1 pb-2">
+              <label className="flex items-center gap-2 text-xs font-medium text-[var(--muted)]">
+                <input
+                  aria-label={`Select project saved ${formatHistoryTimestamp(task.updatedAt)}`}
+                  checked={selectedTaskIds.includes(task.taskId)}
+                  className="h-4 w-4 rounded border-[var(--border-strong)] text-[var(--accent-soft)] focus:ring-[var(--text)]"
+                  onChange={() => toggleSelectedTask(task.taskId)}
+                  type="checkbox"
+                />
+                Select
+              </label>
               <span className="rounded-full bg-white/80 px-2 py-1 text-[11px] font-medium text-[var(--muted)]">
                 {task.status === "ready" ? "Saved" : "Draft"}
               </span>
             </div>
-          </button>
+            <button
+              aria-label={`Open project saved ${formatHistoryTimestamp(task.updatedAt)}`}
+              className="w-full text-left"
+              onClick={() => void handleOpenTask(task.taskId)}
+              type="button"
+            >
+              <div className="overflow-hidden rounded-[16px] border border-black/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(231,236,241,0.85))]">
+                <img
+                  alt={`Project preview ${formatHistoryTimestamp(task.updatedAt)}`}
+                  className="aspect-[4/3] w-full object-cover"
+                  src={task.previewRgbaPath}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-3 px-1">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    {task.mode === "auto" ? "Auto" : "Manual"}
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--text)]">
+                    {formatHistoryTimestamp(task.updatedAt)}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
         ))}
       </div>
       {errorMessage ? (
