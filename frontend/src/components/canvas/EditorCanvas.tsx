@@ -259,7 +259,7 @@ export function EditorCanvas() {
               ? promptPoints.map((point, index) => (
                   <span
                     className={`absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow-sm ${
-                      point.type === "positive" ? "bg-emerald-500" : "bg-rose-500"
+                      point.type === "positive" ? "bg-[var(--accent)]" : "bg-[var(--accent-pink)]"
                     }`}
                     key={`${point.type}-${point.x}-${point.y}-${index}`}
                     style={{

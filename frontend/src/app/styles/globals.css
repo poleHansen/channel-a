@@ -3,21 +3,23 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f3ecdf;
-  --bg-accent: #f8f1e7;
-  --panel: #f5ecdf;
-  --panel-strong: #f7efe4;
-  --card: #efe3d4;
-  --card-strong: #f8f2ea;
-  --surface-soft: rgba(255, 250, 244, 0.72);
-  --surface-inset: rgba(226, 210, 191, 0.42);
-  --border: rgba(171, 145, 117, 0.18);
-  --border-strong: rgba(156, 126, 95, 0.28);
-  --text: #433224;
-  --muted: #8a7566;
-  --accent: #d7896c;
-  --accent-strong: #bf7054;
-  --accent-sage: #9daa7a;
+  --bg: #e0e5ec;
+  --bg-accent: #eef2f7;
+  --panel: #edf1f6;
+  --panel-strong: #f4f7fb;
+  --card: #e8edf4;
+  --card-strong: #f5f8fc;
+  --surface-soft: rgba(244, 247, 251, 0.82);
+  --surface-inset: rgba(209, 218, 229, 0.48);
+  --border: rgba(173, 186, 201, 0.34);
+  --border-strong: rgba(225, 126, 116, 0.24);
+  --text: #475569;
+  --muted: #7b8798;
+  --accent: #f39a8f;
+  --accent-strong: #e17e74;
+  --accent-pressed: #cf6c64;
+  --accent-soft: #f7b5ac;
+  --accent-pink: #f6c7d3;
   --danger: #c85d5d;
   --topbar-height: 88px;
 }
@@ -26,10 +28,11 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 12% 14%, rgba(255, 246, 233, 0.95) 0%, rgba(255, 246, 233, 0) 24%),
-    radial-gradient(circle at 88% 18%, rgba(234, 208, 188, 0.62) 0%, rgba(234, 208, 188, 0) 20%),
-    radial-gradient(circle at 75% 78%, rgba(201, 214, 183, 0.35) 0%, rgba(201, 214, 183, 0) 18%),
-    linear-gradient(180deg, var(--bg-accent) 0%, var(--bg) 55%, #ebdfd0 100%);
+    radial-gradient(circle at 12% 14%, rgba(255, 252, 248, 0.9) 0%, rgba(255, 252, 248, 0) 22%),
+    radial-gradient(circle at 88% 18%, rgba(248, 206, 198, 0.28) 0%, rgba(248, 206, 198, 0) 20%),
+    radial-gradient(circle at 76% 78%, rgba(246, 199, 211, 0.2) 0%, rgba(246, 199, 211, 0) 18%),
+    radial-gradient(circle at 18% 82%, rgba(255, 224, 202, 0.18) 0%, rgba(255, 224, 202, 0) 18%),
+    linear-gradient(180deg, var(--bg-accent) 0%, var(--bg) 60%, #d8dee7 100%);
   color: var(--text);
   font-family: "IBM Plex Sans", "Noto Sans SC", sans-serif;
 }
@@ -41,45 +44,47 @@ body {
 @layer components {
   .clay-panel {
     border: 1px solid var(--border);
-    background: linear-gradient(180deg, rgba(255, 250, 244, 0.92), rgba(241, 229, 214, 0.88));
+    background: linear-gradient(180deg, rgba(246, 249, 252, 0.96), rgba(229, 235, 243, 0.94));
     box-shadow:
-      0 22px 44px rgba(132, 105, 79, 0.14),
-      0 10px 20px rgba(255, 252, 247, 0.92) inset,
-      0 -12px 20px rgba(197, 174, 148, 0.22) inset,
-      -8px -8px 16px rgba(255, 255, 255, 0.52);
+      18px 18px 36px rgba(170, 180, 193, 0.42),
+      -16px -16px 28px rgba(255, 255, 255, 0.9),
+      inset 0 8px 16px rgba(255, 255, 255, 0.74),
+      inset 0 -10px 18px rgba(205, 214, 224, 0.58);
   }
 
   .clay-panel-strong {
     box-shadow:
-      0 28px 52px rgba(120, 94, 68, 0.16),
-      0 12px 24px rgba(255, 252, 247, 0.96) inset,
-      0 -14px 24px rgba(195, 169, 142, 0.24) inset,
-      -10px -10px 18px rgba(255, 255, 255, 0.6);
+      22px 22px 40px rgba(167, 178, 192, 0.46),
+      -18px -18px 30px rgba(255, 255, 255, 0.94),
+      inset 0 10px 18px rgba(255, 255, 255, 0.78),
+      inset 0 -12px 20px rgba(203, 213, 223, 0.6);
   }
 
   .clay-card {
-    border: 1px solid rgba(171, 145, 117, 0.16);
-    background: linear-gradient(180deg, rgba(255, 250, 244, 0.76), rgba(241, 229, 214, 0.6));
+    border: 1px solid rgba(173, 186, 201, 0.28);
+    background: linear-gradient(180deg, rgba(243, 247, 251, 0.9), rgba(231, 237, 244, 0.8));
     box-shadow:
-      0 16px 30px rgba(132, 105, 79, 0.09),
-      0 6px 14px rgba(255, 252, 247, 0.86) inset,
-      0 -8px 14px rgba(197, 174, 148, 0.18) inset;
+      12px 12px 24px rgba(172, 182, 195, 0.32),
+      -10px -10px 18px rgba(255, 255, 255, 0.84),
+      inset 0 6px 12px rgba(255, 255, 255, 0.68),
+      inset 0 -8px 14px rgba(209, 217, 227, 0.52);
   }
 
   .clay-inset {
-    background: linear-gradient(180deg, rgba(227, 210, 189, 0.28), rgba(255, 248, 239, 0.58));
+    background: linear-gradient(180deg, rgba(217, 225, 234, 0.52), rgba(244, 247, 251, 0.9));
     box-shadow:
-      inset 0 4px 10px rgba(181, 150, 122, 0.18),
-      inset 0 -6px 12px rgba(255, 255, 255, 0.72);
+      inset 8px 8px 16px rgba(194, 204, 216, 0.62),
+      inset -8px -8px 16px rgba(255, 255, 255, 0.88);
   }
 
   .clay-button {
     border: 1px solid var(--border);
-    background: linear-gradient(180deg, rgba(255, 249, 242, 0.98), rgba(233, 217, 199, 0.92));
+    background: linear-gradient(180deg, rgba(244, 247, 251, 0.98), rgba(229, 235, 243, 0.96));
     box-shadow:
-      0 12px 20px rgba(122, 96, 71, 0.14),
-      0 4px 8px rgba(255, 255, 255, 0.9) inset,
-      0 -8px 12px rgba(185, 157, 126, 0.22) inset;
+      10px 10px 18px rgba(173, 184, 198, 0.34),
+      -8px -8px 14px rgba(255, 255, 255, 0.9),
+      inset 0 4px 8px rgba(255, 255, 255, 0.72),
+      inset 0 -6px 10px rgba(208, 217, 227, 0.54);
     transition:
       transform 160ms ease,
       box-shadow 160ms ease,
@@ -90,32 +95,34 @@ body {
   .clay-button:hover {
     transform: translateY(-1px);
     box-shadow:
-      0 16px 26px rgba(122, 96, 71, 0.16),
-      0 4px 8px rgba(255, 255, 255, 0.9) inset,
-      0 -8px 12px rgba(185, 157, 126, 0.22) inset;
+      12px 12px 20px rgba(173, 184, 198, 0.38),
+      -10px -10px 16px rgba(255, 255, 255, 0.94),
+      inset 0 4px 8px rgba(255, 255, 255, 0.74),
+      inset 0 -6px 10px rgba(208, 217, 227, 0.54);
   }
 
   .clay-button:active {
     transform: translateY(1px) scale(0.99);
     box-shadow:
-      0 6px 10px rgba(122, 96, 71, 0.1),
-      inset 0 6px 10px rgba(188, 158, 128, 0.22),
-      inset 0 -4px 8px rgba(255, 255, 255, 0.7);
+      6px 6px 10px rgba(173, 184, 198, 0.22),
+      inset 8px 8px 12px rgba(201, 210, 220, 0.7),
+      inset -6px -6px 10px rgba(255, 255, 255, 0.72);
   }
 
   .clay-button-accent {
-    color: #fffaf5;
-    border-color: rgba(191, 112, 84, 0.22);
-    background: linear-gradient(180deg, #e39a7d, var(--accent-strong));
+    color: #fff9f7;
+    border-color: rgba(225, 126, 116, 0.24);
+    background: linear-gradient(180deg, var(--accent-soft), var(--accent-strong));
   }
 
   .clay-toolbar {
     border: 1px solid var(--border);
-    background: linear-gradient(180deg, rgba(247, 237, 225, 0.95), rgba(231, 217, 200, 0.92));
+    background: linear-gradient(180deg, rgba(242, 246, 250, 0.97), rgba(228, 234, 242, 0.94));
     box-shadow:
-      0 24px 40px rgba(113, 88, 65, 0.16),
-      0 10px 18px rgba(255, 255, 255, 0.84) inset,
-      0 -10px 18px rgba(188, 162, 133, 0.24) inset;
+      16px 16px 30px rgba(170, 180, 193, 0.36),
+      -14px -14px 24px rgba(255, 255, 255, 0.92),
+      inset 0 8px 14px rgba(255, 255, 255, 0.76),
+      inset 0 -10px 16px rgba(205, 214, 224, 0.58);
     backdrop-filter: blur(10px);
   }
 

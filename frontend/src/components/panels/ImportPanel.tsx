@@ -69,7 +69,7 @@ export function ImportPanel() {
           <button
             className={`clay-button rounded-full px-3 py-1 text-xs font-medium ${
               uploadMode === mode
-                ? "border-[rgba(153,110,80,0.32)] bg-[linear-gradient(180deg,#c59b7c,#b48463)] text-white shadow-[inset_0_4px_8px_rgba(255,255,255,0.25),inset_0_-8px_14px_rgba(102,68,42,0.22)]"
+                ? "border-[var(--border-strong)] bg-[linear-gradient(180deg,var(--accent-soft),var(--accent-pressed))] text-white shadow-[inset_0_4px_8px_rgba(255,255,255,0.28),inset_0_-8px_14px_rgba(146,83,75,0.2)]"
                 : "text-[var(--muted)]"
             }`}
             key={mode}

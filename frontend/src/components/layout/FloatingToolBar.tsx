@@ -98,7 +98,7 @@ export function FloatingToolBar() {
         <button
           className={`clay-tool-button clay-button rounded-full px-3 py-2 text-sm font-medium ${
             activeTool === tool.key
-              ? "border-[rgba(153,110,80,0.32)] bg-[linear-gradient(180deg,#c59b7c,#b48463)] text-white shadow-[inset_0_4px_8px_rgba(255,255,255,0.25),inset_0_-8px_14px_rgba(102,68,42,0.22)]"
+              ? "border-[var(--border-strong)] bg-[linear-gradient(180deg,var(--accent-soft),var(--accent-pressed))] text-white shadow-[inset_0_4px_8px_rgba(255,255,255,0.28),inset_0_-8px_14px_rgba(146,83,75,0.2)]"
               : "text-[var(--text)]"
           } disabled:cursor-not-allowed disabled:opacity-50`}
           disabled={!hasTask}
