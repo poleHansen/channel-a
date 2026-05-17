@@ -12,8 +12,6 @@ export function ImportPanel() {
   const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uploadMode, setUploadMode] = useState<TaskMode>("auto");
-  const currentTaskId = useTaskStore((state) => state.currentTaskId);
-  const previewRgbaPath = useTaskStore((state) => state.previewRgbaPath);
   const clearAutoSegmentResult = useTaskStore(
     (state) => state.clearAutoSegmentResult,
   );
@@ -52,7 +50,7 @@ export function ImportPanel() {
         <div>
           <h3 className="text-sm font-semibold">Import image</h3>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Choose whether upload should auto cut out immediately or start in manual mode.
+            Choose an image to start editing. 
           </p>
         </div>
         <button
@@ -89,17 +87,6 @@ export function ImportPanel() {
         ref={inputRef}
         type="file"
       />
-      {currentTaskId ? (
-        <p className="mt-3 text-xs text-[var(--muted)]">Task: {currentTaskId}</p>
-      ) : null}
-      {previewRgbaPath ? (
-        <p className="mt-1 text-xs text-[var(--muted)]">
-          Preview: {previewRgbaPath}
-        </p>
-      ) : null}
-      <p className="mt-3 text-xs text-[var(--muted)]">
-        Current upload mode: {uploadMode === "auto" ? "Auto cutout" : "Manual Keep/Remove"}
-      </p>
       {errorMessage ? (
         <p aria-live="assertive" className="mt-3 text-xs text-red-600" role="alert">
           {errorMessage}
