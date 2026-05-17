@@ -18,7 +18,7 @@ New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
 Write-Host "Starting Cutout Web Tool frontend and backend..."
 
 $backendExecutable = if (Test-Path $backendPython) { $backendPython } else { "python" }
-$frontendExecutable = "node"
+$frontendExecutable = (Get-Command node -ErrorAction Stop).Source
 
 if (-not (Test-Path $frontendVite)) {
   throw "Vite entrypoint not found at $frontendVite. Run frontend dependency installation first."
@@ -26,35 +26,114 @@ if (-not (Test-Path $frontendVite)) {
 
 function Write-ProcessMetadata {
   param(
-    [string]$Path,
+    [string]$MetadataPath,
     [System.Diagnostics.Process]$Process,
     [string]$Role,
     [string]$Workdir,
-    [string]$CommandMarker
+    [string]$ExecutablePath
   )
 
   $metadata = @{
     pid = $Process.Id
     role = $Role
     workdir = $Workdir
-    command_marker = $CommandMarker
+    executable_path = $ExecutablePath
   }
-  $metadata | ConvertTo-Json | Set-Content -Path $Path -Encoding utf8
+  $metadata | ConvertTo-Json | Set-Content -Path $MetadataPath -Encoding utf8
 }
 
-function Stop-MatchingProcesses {
+function Read-ProcessMetadata {
   param(
-    [string]$Workdir,
-    [string]$CommandMarker
+    [string]$MetadataPath
   )
 
-  Get-CimInstance Win32_Process | Where-Object {
-    $_.CommandLine -and
-    $_.CommandLine -like "*$CommandMarker*" -and
-    $_.CommandLine -like "*$Workdir*"
-  } | ForEach-Object {
-    Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+  if (-not (Test-Path $MetadataPath)) {
+    return $null
   }
+
+  try {
+    return Get-Content $MetadataPath -Raw | ConvertFrom-Json
+  } catch {
+    Remove-Item $MetadataPath -Force -ErrorAction SilentlyContinue
+    return $null
+  }
+}
+
+function Join-ProcessArguments {
+  param(
+    [string[]]$Arguments
+  )
+
+  return ($Arguments | ForEach-Object {
+    if ($_ -match '\s|"') {
+      '"' + ($_ -replace '"', '\"') + '"'
+    } else {
+      $_
+    }
+  }) -join ' '
+}
+
+function Stop-TrackedProcess {
+  param(
+    [string]$MetadataPath
+  )
+
+  $metadata = Read-ProcessMetadata -MetadataPath $MetadataPath
+  if ($null -eq $metadata) {
+    return
+  }
+
+  $process = Get-Process -Id $metadata.pid -ErrorAction SilentlyContinue
+  if ($null -ne $process) {
+    $expectedPath = [System.IO.Path]::GetFullPath([string]$metadata.executable_path)
+    $actualPath = if ($process.Path) { [System.IO.Path]::GetFullPath($process.Path) } else { "" }
+
+    if ($actualPath -ieq $expectedPath) {
+      Stop-Process -Id $metadata.pid -ErrorAction SilentlyContinue
+      try {
+        $process.WaitForExit(5000)
+      } catch {
+      }
+    } else {
+      Write-Warning "Skipping PID $($metadata.pid) because it no longer matches the tracked $($metadata.role) executable."
+    }
+  }
+
+  Remove-Item $MetadataPath -Force -ErrorAction SilentlyContinue
+}
+
+function Start-DetachedProcess {
+  param(
+    [string]$ExecutablePath,
+    [string[]]$Arguments,
+    [string]$WorkingDirectory
+  )
+
+  return Start-Process `
+    -FilePath $ExecutablePath `
+    -ArgumentList $Arguments `
+    -WorkingDirectory $WorkingDirectory `
+    -WindowStyle Hidden `
+    -PassThru
+}
+
+function Start-PowerShellWorker {
+  param(
+    [string]$WorkingDirectory,
+    [string]$Command
+  )
+
+  $powershellExecutable = (Get-Command powershell -ErrorAction Stop).Source
+  return Start-DetachedProcess `
+    -ExecutablePath $powershellExecutable `
+    -Arguments @(
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-Command",
+      "Set-Location -LiteralPath '$($WorkingDirectory -replace '''', '''''')'; $Command"
+    ) `
+    -WorkingDirectory $WorkingDirectory
 }
 
 function Wait-ForUrl {
@@ -76,27 +155,21 @@ function Wait-ForUrl {
   return $false
 }
 
-Stop-MatchingProcesses -Workdir $backendWorkdir -CommandMarker "app.main:app"
-Stop-MatchingProcesses -Workdir $frontendWorkdir -CommandMarker "vite.js"
+Stop-TrackedProcess -MetadataPath $backendPidFile
+Stop-TrackedProcess -MetadataPath $frontendPidFile
 
-$backend = Start-Process -FilePath $backendExecutable `
-  -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000" `
+$backendCommand = "& '$($backendExecutable -replace '''', '''''')' -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
+$backend = Start-PowerShellWorker `
   -WorkingDirectory $backendWorkdir `
-  -RedirectStandardOutput $backendStdout `
-  -RedirectStandardError $backendStderr `
-  -WindowStyle Hidden `
-  -PassThru
+  -Command $backendCommand
 
-$frontend = Start-Process -FilePath $frontendExecutable `
-  -ArgumentList $frontendVite, "--host", "127.0.0.1", "--port", "7860" `
-  -WorkingDirectory $frontendWorkdir `
-  -RedirectStandardOutput $frontendStdout `
-  -RedirectStandardError $frontendStderr `
-  -WindowStyle Hidden `
-  -PassThru
+$frontend = Start-DetachedProcess `
+  -ExecutablePath $frontendExecutable `
+  -Arguments @($frontendVite, "--host", "127.0.0.1", "--port", "7860") `
+  -WorkingDirectory $frontendWorkdir
 
-Write-ProcessMetadata -Path $backendPidFile -Process $backend -Role "backend" -Workdir $backendWorkdir -CommandMarker "app.main:app"
-Write-ProcessMetadata -Path $frontendPidFile -Process $frontend -Role "frontend" -Workdir $frontendWorkdir -CommandMarker "vite.js"
+Write-ProcessMetadata -MetadataPath $backendPidFile -Process $backend -Role "backend" -Workdir $backendWorkdir -ExecutablePath ((Get-Command powershell -ErrorAction Stop).Source)
+Write-ProcessMetadata -MetadataPath $frontendPidFile -Process $frontend -Role "frontend" -Workdir $frontendWorkdir -ExecutablePath $frontendExecutable
 
 $backendReady = Wait-ForUrl -Url "http://127.0.0.1:8000/api/health"
 $frontendReady = Wait-ForUrl -Url "http://127.0.0.1:7860"

@@ -33,3 +33,8 @@ export interface TaskResponse {
 export interface TaskListResponse {
   tasks: TaskResponse[];
 }
+
+export interface SaveTaskResponse {
+  saved_task: TaskResponse;
+  current_task: TaskResponse;
+}

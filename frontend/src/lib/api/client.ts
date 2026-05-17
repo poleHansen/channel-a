@@ -4,6 +4,7 @@ import type {
   AutoSegmentResponse,
   ExportResponse,
   InteractiveSegmentResponse,
+  SaveTaskResponse,
   TaskListResponse,
   TaskResponse,
 } from "./types";
@@ -150,6 +151,26 @@ export async function redoTaskEdit(taskId: string): Promise<AutoSegmentResult> {
   }
 
   return mapTaskResponse((await response.json()) as TaskResponse);
+}
+
+export async function saveTaskSnapshot(taskId: string): Promise<{
+  savedTask: AutoSegmentResult;
+  currentTask: AutoSegmentResult;
+}> {
+  const response = await fetch(`/api/tasks/${taskId}/save`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Save request failed.");
+  }
+
+  const result = (await response.json()) as SaveTaskResponse;
+
+  return {
+    savedTask: mapTaskResponse(result.saved_task),
+    currentTask: mapTaskResponse(result.current_task),
+  };
 }
 
 export async function refineInteractiveSegment(payload: {

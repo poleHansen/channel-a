@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+from PIL import Image
 from pydantic import ValidationError
 
 from app.schemas.tasks import TaskMetadata, TaskMode, TaskRecord
@@ -56,6 +57,67 @@ class TaskStore:
         )
         self.write_metadata(record, metadata)
         return record
+
+    def clone_task_as_saved_version(self, source_task_id: str) -> TaskRecord:
+        source_record = self.build_task_record(source_task_id)
+        source_metadata = self.read_metadata(source_task_id)
+        cloned_record = self.build_task_record(uuid4().hex)
+        cloned_task_dir = Path(cloned_record.task_dir)
+        cloned_task_dir.mkdir(parents=True, exist_ok=True)
+
+        source_files = [
+            ("original_path", source_record.original_path),
+            ("source_rgb_path", source_record.source_rgb_path),
+            ("auto_mask_path", source_record.auto_mask_path),
+            ("working_mask_path", source_record.working_mask_path),
+            ("preview_rgba_path", source_record.preview_rgba_path),
+        ]
+        for _, source_path in source_files:
+            source_file = Path(source_path)
+            if source_file.exists():
+                shutil.copyfile(source_file, cloned_task_dir / source_file.name)
+
+        now = utc_now_iso()
+        cloned_metadata = TaskMetadata(
+            task_id=cloned_record.task_id,
+            created_at=now,
+            updated_at=now,
+            mode=source_metadata.mode,
+            status="ready",
+            original_image_size=source_metadata.original_image_size,
+            current_mask_path=cloned_record.working_mask_path,
+            background_settings=source_metadata.background_settings,
+            export_settings=source_metadata.export_settings,
+            edit_history=[],
+            history_cursor=-1,
+            edge_refinement_enabled=source_metadata.edge_refinement_enabled,
+        )
+        self.write_metadata(cloned_record, cloned_metadata)
+        return cloned_record
+
+    def reset_task_to_initial_state(self, task_id: str) -> TaskMetadata:
+        record = self.build_task_record(task_id)
+        metadata = self.read_metadata(task_id)
+        task_dir = Path(record.task_dir)
+        history_dir = task_dir / "temp" / "history"
+        if history_dir.exists():
+            shutil.rmtree(history_dir, ignore_errors=True)
+
+        source_rgb_path = Path(record.source_rgb_path)
+        working_mask_path = Path(record.working_mask_path)
+        if metadata.mode == "auto" and Path(record.auto_mask_path).exists():
+            shutil.copyfile(record.auto_mask_path, working_mask_path)
+        else:
+            with Image.open(source_rgb_path) as source_image:
+                Image.new("L", source_image.size, color=255).save(working_mask_path, format="PNG")
+
+        self.update_metadata(
+            task_id,
+            current_mask_path=record.working_mask_path,
+            edit_history=[],
+            history_cursor=-1,
+        )
+        return self.push_history_snapshot(task_id)
 
     def read_metadata(self, task_id: str) -> TaskMetadata:
         record = self.build_task_record(task_id)

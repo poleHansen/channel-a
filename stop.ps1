@@ -3,18 +3,20 @@ $logsDir = Join-Path $root "logs"
 $frontendPidFile = Join-Path $logsDir "frontend.pid"
 $backendPidFile = Join-Path $logsDir "backend.pid"
 
-function Stop-MatchingProcesses {
+function Read-ProcessMetadata {
   param(
-    [string]$Workdir,
-    [string]$CommandMarker
+    [string]$MetadataPath
   )
 
-  Get-CimInstance Win32_Process | Where-Object {
-    $_.CommandLine -and
-    $_.CommandLine -like "*$CommandMarker*" -and
-    $_.CommandLine -like "*$Workdir*"
-  } | ForEach-Object {
-    Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+  if (-not (Test-Path $MetadataPath)) {
+    return $null
+  }
+
+  try {
+    return Get-Content $MetadataPath -Raw | ConvertFrom-Json
+  } catch {
+    Remove-Item $MetadataPath -Force -ErrorAction SilentlyContinue
+    return $null
   }
 }
 
@@ -23,37 +25,38 @@ function Stop-TrackedProcess {
     [string]$MetadataPath
   )
 
-  if (-not (Test-Path $MetadataPath)) {
-    return
-  }
-
-  try {
-    $metadata = Get-Content $MetadataPath -Raw | ConvertFrom-Json
-  } catch {
-    Remove-Item $MetadataPath -Force
+  $metadata = Read-ProcessMetadata -MetadataPath $MetadataPath
+  if ($null -eq $metadata) {
     return
   }
 
   $process = Get-Process -Id $metadata.pid -ErrorAction SilentlyContinue
   if ($null -eq $process) {
-    Remove-Item $MetadataPath -Force
+    Remove-Item $MetadataPath -Force -ErrorAction SilentlyContinue
     return
   }
 
-  $processInfo = Get-CimInstance Win32_Process -Filter "ProcessId = $($metadata.pid)"
-  $commandLine = if ($null -ne $processInfo) { $processInfo.CommandLine } else { "" }
-
-  if ($commandLine -and $commandLine -like "*$($metadata.command_marker)*" -and $commandLine -like "*$($metadata.workdir)*") {
+  if (-not $metadata.executable_path) {
     Stop-Process -Id $metadata.pid -ErrorAction SilentlyContinue
-  } else {
-    Write-Warning "Skipping PID $($metadata.pid) because it no longer matches the tracked $($metadata.role) process."
+    Remove-Item $MetadataPath -Force -ErrorAction SilentlyContinue
+    return
   }
 
-  Remove-Item $MetadataPath -Force
+  $expectedPath = [System.IO.Path]::GetFullPath([string]$metadata.executable_path)
+  $actualPath = if ($process.Path) { [System.IO.Path]::GetFullPath($process.Path) } else { "" }
+
+  if ($actualPath -ieq $expectedPath) {
+    Stop-Process -Id $metadata.pid -ErrorAction SilentlyContinue
+    try {
+      $process.WaitForExit(5000)
+    } catch {
+    }
+  } else {
+    Write-Warning "Skipping PID $($metadata.pid) because it no longer matches the tracked $($metadata.role) executable."
+  }
+
+  Remove-Item $MetadataPath -Force -ErrorAction SilentlyContinue
 }
 
 Stop-TrackedProcess -MetadataPath $frontendPidFile
 Stop-TrackedProcess -MetadataPath $backendPidFile
-
-Stop-MatchingProcesses -Workdir (Join-Path $root "frontend") -CommandMarker "vite.js"
-Stop-MatchingProcesses -Workdir (Join-Path $root "backend") -CommandMarker "app.main:app"

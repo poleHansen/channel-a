@@ -57,3 +57,8 @@ class TaskResponse(BaseModel):
     preview_rgba: str
     can_undo: bool = False
     can_redo: bool = False
+
+
+class SaveTaskResponse(BaseModel):
+    saved_task: TaskResponse
+    current_task: TaskResponse

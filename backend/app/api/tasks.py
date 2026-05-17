@@ -4,7 +4,13 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from PIL import Image
 
 from app.api.segment import _build_output_url, _resolve_task_dir, _write_preview_rgba
-from app.schemas.tasks import TaskListResponse, TaskMode, TaskResponse, TaskSummary
+from app.schemas.tasks import (
+    SaveTaskResponse,
+    TaskListResponse,
+    TaskMode,
+    TaskResponse,
+    TaskSummary,
+)
 from app.services.image_service import normalize_upload_to_rgb
 from app.services.task_store import TaskStore
 
@@ -183,3 +189,36 @@ def redo_task_edit(task_id: str, request: Request) -> TaskResponse:
         Path(task.preview_rgba_path),
     )
     return _task_response_from_metadata(task_id, task_store.base_dir, metadata)
+
+
+@router.post("/{task_id}/save", response_model=SaveTaskResponse)
+def save_task_snapshot(task_id: str, request: Request) -> SaveTaskResponse:
+    task_store = TaskStore(request.app.state.settings.outputs_dir)
+    task_dir = _resolve_task_dir(task_store.base_dir, task_id)
+    if not (task_dir / "source_rgb.png").exists():
+        raise HTTPException(status_code=404, detail="source_rgb.png not found")
+
+    saved_record = task_store.clone_task_as_saved_version(task_id)
+    saved_metadata = task_store.read_metadata(saved_record.task_id)
+
+    reset_metadata = task_store.reset_task_to_initial_state(task_id)
+    current_task = task_store.build_task_record(task_id)
+    _write_preview_rgba(
+        Path(current_task.source_rgb_path),
+        Path(current_task.working_mask_path),
+        Path(current_task.preview_rgba_path),
+    )
+    saved_metadata = task_store.update_metadata(saved_record.task_id)
+
+    return SaveTaskResponse(
+        saved_task=_task_response_from_metadata(
+            saved_record.task_id,
+            task_store.base_dir,
+            saved_metadata,
+        ),
+        current_task=_task_response_from_metadata(
+            task_id,
+            task_store.base_dir,
+            reset_metadata,
+        ),
+    )
