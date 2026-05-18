@@ -19,6 +19,7 @@ function formatHistoryTimestamp(value: string): string {
 }
 
 export function TaskHistoryPanel() {
+  const clearDraftStroke = useEditorStore((state) => state.clearDraftStroke);
   const clearPromptPoints = useEditorStore((state) => state.clearPromptPoints);
   const currentTaskId = useTaskStore((state) => state.currentTaskId);
   const selectedTaskIds = useTaskStore((state) => state.selectedTaskIds);
@@ -64,6 +65,7 @@ export function TaskHistoryPanel() {
     setErrorMessage(null);
     try {
       const task = await getTask(taskId);
+      clearDraftStroke();
       clearPromptPoints();
       setCurrentTask(task);
     } catch (error) {

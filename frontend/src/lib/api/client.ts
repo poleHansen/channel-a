@@ -1,4 +1,4 @@
-import type { PromptPoint } from "../../types/editor";
+import type { BrushStroke, PromptBox, PromptPoint } from "../../types/editor";
 import type { AutoSegmentResult, TaskSummary } from "../../types/task";
 import type {
   AutoSegmentResponse,
@@ -8,6 +8,34 @@ import type {
   TaskListResponse,
   TaskResponse,
 } from "./types";
+
+async function buildApiError(
+  response: Response,
+  fallbackMessage: string,
+): Promise<Error> {
+  let rawBody = "";
+
+  try {
+    rawBody = (await response.text()).trim();
+  } catch {
+    // Ignore body parsing problems and fall back to the default message.
+  }
+
+  if (rawBody) {
+    try {
+      const payload = JSON.parse(rawBody) as { detail?: string };
+      if (payload.detail) {
+        return new Error(payload.detail);
+      }
+    } catch {
+      // Ignore JSON parsing problems and fall back to the raw response body.
+    }
+
+    return new Error(rawBody);
+  }
+
+  return new Error(fallbackMessage);
+}
 
 function mapTaskResponse(payload: TaskResponse): AutoSegmentResult {
   const previewRgbaPath = payload.preview_rgba_path ?? payload.preview_rgba;
@@ -88,7 +116,7 @@ export async function createTaskFromUpload(
   });
 
   if (!response.ok) {
-    throw new Error("Task creation request failed.");
+    throw await buildApiError(response, "Task creation request failed.");
   }
 
   return mapTaskResponse((await response.json()) as TaskResponse);
@@ -98,7 +126,7 @@ export async function listTasks(): Promise<TaskSummary[]> {
   const response = await fetch("/api/tasks");
 
   if (!response.ok) {
-    throw new Error("Task history request failed.");
+    throw await buildApiError(response, "Task history request failed.");
   }
 
   const payload = (await response.json()) as TaskListResponse;
@@ -109,7 +137,7 @@ export async function getTask(taskId: string): Promise<AutoSegmentResult> {
   const response = await fetch(`/api/tasks/${taskId}`);
 
   if (!response.ok) {
-    throw new Error("Task load request failed.");
+    throw await buildApiError(response, "Task load request failed.");
   }
 
   return mapTaskResponse((await response.json()) as TaskResponse);
@@ -123,7 +151,7 @@ export async function autoSegmentExistingTask(
   });
 
   if (!response.ok) {
-    throw new Error("Automatic cutout request failed.");
+    throw await buildApiError(response, "Automatic cutout request failed.");
   }
 
   return mapTaskResponse((await response.json()) as TaskResponse);
@@ -135,7 +163,7 @@ export async function undoTaskEdit(taskId: string): Promise<AutoSegmentResult> {
   });
 
   if (!response.ok) {
-    throw new Error("Undo request failed.");
+    throw await buildApiError(response, "Undo request failed.");
   }
 
   return mapTaskResponse((await response.json()) as TaskResponse);
@@ -147,7 +175,7 @@ export async function redoTaskEdit(taskId: string): Promise<AutoSegmentResult> {
   });
 
   if (!response.ok) {
-    throw new Error("Redo request failed.");
+    throw await buildApiError(response, "Redo request failed.");
   }
 
   return mapTaskResponse((await response.json()) as TaskResponse);
@@ -162,7 +190,7 @@ export async function saveTaskSnapshot(taskId: string): Promise<{
   });
 
   if (!response.ok) {
-    throw new Error("Save request failed.");
+    throw await buildApiError(response, "Save request failed.");
   }
 
   const result = (await response.json()) as SaveTaskResponse;
@@ -176,7 +204,7 @@ export async function saveTaskSnapshot(taskId: string): Promise<{
 export async function refineInteractiveSegment(payload: {
   taskId: string;
   points: PromptPoint[];
-  boxes: Array<Record<string, number>>;
+  boxes: PromptBox[];
 }) {
   const response = await fetch("/api/segment/interactive", {
     method: "POST",
@@ -191,7 +219,7 @@ export async function refineInteractiveSegment(payload: {
   });
 
   if (!response.ok) {
-    throw new Error("Interactive refinement request failed.");
+    throw await buildApiError(response, "Interactive refinement request failed.");
   }
 
   const result = (await response.json()) as InteractiveSegmentResponse;
@@ -204,7 +232,35 @@ export async function refineInteractiveSegment(payload: {
   return {
     canRedo: result.can_redo ?? false,
     canUndo: result.can_undo ?? false,
-    workingMaskPath: result.working_mask_path,
+    workingMaskUrl: result.working_mask_url,
+    previewRgbaPath,
+  };
+}
+
+export async function applyBrushStroke(taskId: string, stroke: BrushStroke) {
+  const response = await fetch(`/api/tasks/${taskId}/brush`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ stroke }),
+  });
+
+  if (!response.ok) {
+    throw await buildApiError(response, "Brush request failed.");
+  }
+
+  const result = (await response.json()) as InteractiveSegmentResponse;
+  const previewRgbaPath = result.preview_rgba_path ?? result.preview_rgba;
+
+  if (!previewRgbaPath) {
+    throw new Error("Brush response did not include a preview path.");
+  }
+
+  return {
+    canRedo: result.can_redo ?? false,
+    canUndo: result.can_undo ?? false,
+    workingMaskUrl: result.working_mask_url,
     previewRgbaPath,
   };
 }
@@ -227,7 +283,7 @@ export async function exportSegmentResult(payload: {
   });
 
   if (!response.ok) {
-    throw new Error("Export request failed.");
+    throw await buildApiError(response, "Export request failed.");
   }
 
   const result = (await response.json()) as ExportResponse;

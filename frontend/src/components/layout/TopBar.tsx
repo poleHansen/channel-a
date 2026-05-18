@@ -5,6 +5,7 @@ import { useEditorStore } from "../../state/editorStore";
 import { useTaskStore } from "../../state/taskStore";
 
 export function TopBar() {
+  const clearDraftStroke = useEditorStore((state) => state.clearDraftStroke);
   const clearPromptPoints = useEditorStore((state) => state.clearPromptPoints);
   const currentTaskId = useTaskStore((state) => state.currentTaskId);
   const setCurrentTask = useTaskStore((state) => state.setCurrentTask);
@@ -18,6 +19,7 @@ export function TopBar() {
     setIsAutoCuttingOut(true);
     try {
       const task = await autoSegmentExistingTask(currentTaskId);
+      clearDraftStroke();
       clearPromptPoints();
       setCurrentTask(task);
     } finally {

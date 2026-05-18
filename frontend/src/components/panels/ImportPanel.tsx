@@ -15,6 +15,7 @@ export function ImportPanel() {
   const clearAutoSegmentResult = useTaskStore(
     (state) => state.clearAutoSegmentResult,
   );
+  const clearDraftStroke = useEditorStore((state) => state.clearDraftStroke);
   const clearPromptPoints = useEditorStore((state) => state.clearPromptPoints);
   const setCurrentTask = useTaskStore((state) => state.setCurrentTask);
 
@@ -28,6 +29,7 @@ export function ImportPanel() {
     setIsUploading(true);
     setErrorMessage(null);
     clearAutoSegmentResult();
+    clearDraftStroke();
     clearPromptPoints();
 
     try {

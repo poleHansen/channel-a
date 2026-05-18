@@ -1,8 +1,9 @@
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import { refineInteractiveSegment } from "../../lib/api/client";
-import type { PromptPoint } from "../../types/editor";
+import { applyBrushStroke, refineInteractiveSegment } from "../../lib/api/client";
+import { CanvasMaskLayer } from "./CanvasMaskLayer";
+import type { BrushPoint, BrushStroke, PromptBox, PromptPoint } from "../../types/editor";
 import { useEditorStore } from "../../state/editorStore";
 import { useTaskStore } from "../../state/taskStore";
 
@@ -50,8 +51,17 @@ function withCacheBust(path: string): string {
 export function EditorCanvas() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const activeTool = useEditorStore((state) => state.activeTool);
+  const appendDraftPoint = useEditorStore((state) => state.appendDraftPoint);
   const addPromptPoint = useEditorStore((state) => state.addPromptPoint);
+  const brushSize = useEditorStore((state) => state.brushSize);
+  const clearDraftStroke = useEditorStore((state) => state.clearDraftStroke);
+  const draftStroke = useEditorStore((state) => state.draftStroke);
+  const isApplyingBrush = useEditorStore((state) => state.isApplyingBrush);
+  const isDrawing = useEditorStore((state) => state.isDrawing);
   const promptPoints = useEditorStore((state) => state.promptPoints);
+  const setDraftStroke = useEditorStore((state) => state.setDraftStroke);
+  const setIsApplyingBrush = useEditorStore((state) => state.setIsApplyingBrush);
+  const setIsDrawing = useEditorStore((state) => state.setIsDrawing);
   const currentTaskId = useTaskStore((state) => state.currentTaskId);
   const previewRgbaPath = useTaskStore((state) => state.previewRgbaPath);
   const setEditAvailability = useTaskStore((state) => state.setEditAvailability);
@@ -110,7 +120,11 @@ export function EditorCanvas() {
     };
   }
 
-  async function runRefine(nextPoints: PromptPoint[], boxes: Array<Record<string, number>>) {
+  function isBrushTool(tool: typeof activeTool): tool is BrushStroke["tool"] {
+    return tool === "brush-add" || tool === "brush-remove";
+  }
+
+  async function runRefine(nextPoints: PromptPoint[], boxes: PromptBox[]) {
     if (!currentTaskId) {
       return;
     }
@@ -136,7 +150,7 @@ export function EditorCanvas() {
   }
 
   async function handleCanvasClick(event: ReactMouseEvent<HTMLDivElement>) {
-    if (!previewRgbaPath || activeTool === "box" || isRefining) {
+    if (!previewRgbaPath || activeTool === "box" || isBrushTool(activeTool) || isRefining) {
       return;
     }
 
@@ -155,7 +169,28 @@ export function EditorCanvas() {
   }
 
   function handlePointerDown(event: ReactMouseEvent<HTMLDivElement>) {
-    if (!previewRgbaPath || activeTool !== "box" || isRefining) {
+    if (!previewRgbaPath || isRefining || isApplyingBrush) {
+      return;
+    }
+
+    if (isBrushTool(activeTool)) {
+      const point = mapClientPointToImage(event.clientX, event.clientY);
+      if (!point) {
+        return;
+      }
+
+      setErrorMessage(null);
+      setDraftStroke({
+        tool: activeTool,
+        size: brushSize,
+        softness: 0.35,
+        points: [point],
+      });
+      setIsDrawing(true);
+      return;
+    }
+
+    if (activeTool !== "box") {
       return;
     }
 
@@ -169,6 +204,25 @@ export function EditorCanvas() {
   }
 
   function handlePointerMove(event: ReactMouseEvent<HTMLDivElement>) {
+    if (isDrawing && draftStroke && isBrushTool(activeTool)) {
+      const point = mapClientPointToImage(event.clientX, event.clientY);
+      if (!point) {
+        return;
+      }
+
+      const previous = draftStroke.points[draftStroke.points.length - 1];
+      if (!previous) {
+        appendDraftPoint(point);
+        return;
+      }
+
+      const distance = Math.hypot(point.x - previous.x, point.y - previous.y);
+      if (distance >= 2) {
+        appendDraftPoint(point);
+      }
+      return;
+    }
+
     if (!dragStart) {
       return;
     }
@@ -182,6 +236,37 @@ export function EditorCanvas() {
   }
 
   async function handlePointerUp(event: ReactMouseEvent<HTMLDivElement>) {
+    if (isDrawing && draftStroke && isBrushTool(activeTool)) {
+      setIsDrawing(false);
+
+      const releasePoint = mapClientPointToImage(event.clientX, event.clientY);
+      const strokeToApply: BrushStroke = releasePoint
+        ? {
+            ...draftStroke,
+            points: [...draftStroke.points, releasePoint],
+          }
+        : draftStroke;
+
+      if (!currentTaskId || strokeToApply.points.length === 0) {
+        clearDraftStroke();
+        return;
+      }
+
+      setIsApplyingBrush(true);
+      setErrorMessage(null);
+      try {
+        const result = await applyBrushStroke(currentTaskId, strokeToApply);
+        setPreviewRgbaPath(withCacheBust(result.previewRgbaPath));
+        setEditAvailability(result.canUndo, result.canRedo);
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "Brush request failed.");
+      } finally {
+        clearDraftStroke();
+        setIsApplyingBrush(false);
+      }
+      return;
+    }
+
     if (!dragStart || activeTool !== "box" || isRefining) {
       return;
     }
@@ -226,6 +311,9 @@ export function EditorCanvas() {
       className="clay-inset relative flex h-full min-h-[420px] items-center justify-center overflow-hidden rounded-[30px] border border-[var(--border)] md:min-h-[620px] lg:min-h-0 lg:flex-1"
       onClick={handleCanvasClick}
       onMouseDown={handlePointerDown}
+      onMouseLeave={(event) => {
+        void handlePointerUp(event);
+      }}
       onMouseMove={handlePointerMove}
       onMouseUp={handlePointerUp}
       ref={containerRef}
@@ -252,9 +340,18 @@ export function EditorCanvas() {
           <div
             aria-hidden="true"
             className={`absolute inset-0 rounded-[30px] ${
-              activeTool === "box" ? "cursor-crosshair" : "cursor-cell"
+              activeTool === "box"
+                ? "cursor-crosshair"
+                : isBrushTool(activeTool)
+                  ? "cursor-none"
+                  : "cursor-cell"
             }`}
           >
+            <CanvasMaskLayer
+              displayBox={displayBox}
+              draftStroke={draftStroke}
+              imageSize={imageSize}
+            />
             {displayBox && imageSize
               ? promptPoints.map((point, index) => (
                   <span
@@ -288,9 +385,9 @@ export function EditorCanvas() {
           </div>
         </>
       )}
-      {isRefining ? (
+      {isRefining || isApplyingBrush ? (
         <p className="clay-button absolute bottom-4 right-4 rounded-full px-3 py-1 text-xs text-[var(--muted)]">
-          Refining...
+          {isApplyingBrush ? "Applying..." : "Refining..."}
         </p>
       ) : null}
       {errorMessage ? (

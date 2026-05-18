@@ -102,6 +102,45 @@ function Stop-TrackedProcess {
   Remove-Item $MetadataPath -Force -ErrorAction SilentlyContinue
 }
 
+function Get-ListeningProcessIds {
+  param(
+    [int]$Port
+  )
+
+  $matches = netstat -ano -p TCP | Select-String -Pattern "127\.0\.0\.1:$Port\s+.*LISTENING\s+(\d+)$"
+  $processIds = @()
+
+  foreach ($match in $matches) {
+    if ($match.Matches.Count -gt 0) {
+      $processIds += [int]$match.Matches[0].Groups[1].Value
+    }
+  }
+
+  return $processIds | Sort-Object -Unique
+}
+
+function Stop-PortListeners {
+  param(
+    [int]$Port,
+    [string[]]$AllowedProcessNames
+  )
+
+  foreach ($processId in Get-ListeningProcessIds -Port $Port) {
+    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+    if ($null -eq $process) {
+      continue
+    }
+
+    if ($AllowedProcessNames -contains $process.ProcessName.ToLowerInvariant()) {
+      Stop-Process -Id $processId -ErrorAction SilentlyContinue
+      try {
+        $process.WaitForExit(5000)
+      } catch {
+      }
+    }
+  }
+}
+
 function Start-DetachedProcess {
   param(
     [string]$ExecutablePath,
@@ -157,11 +196,12 @@ function Wait-ForUrl {
 
 Stop-TrackedProcess -MetadataPath $backendPidFile
 Stop-TrackedProcess -MetadataPath $frontendPidFile
+Stop-PortListeners -Port 8000 -AllowedProcessNames @("python", "powershell", "pwsh")
+Stop-PortListeners -Port 7860 -AllowedProcessNames @("node")
 
 $backendCommand = "& '$($backendExecutable -replace '''', '''''')' -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
 $backend = Start-PowerShellWorker `
-  -WorkingDirectory $backendWorkdir `
-  -Command $backendCommand
+  -WorkingDirectory $backendWorkdir
 
 $frontend = Start-DetachedProcess `
   -ExecutablePath $frontendExecutable `

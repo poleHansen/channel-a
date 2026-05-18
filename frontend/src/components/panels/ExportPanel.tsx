@@ -5,6 +5,7 @@ import { useEditorStore } from "../../state/editorStore";
 import { useTaskStore } from "../../state/taskStore";
 
 export function ExportPanel() {
+  const clearDraftStroke = useEditorStore((state) => state.clearDraftStroke);
   const clearPromptPoints = useEditorStore((state) => state.clearPromptPoints);
   const currentTaskId = useTaskStore((state) => state.currentTaskId);
   const selectedTaskIds = useTaskStore((state) => state.selectedTaskIds);
@@ -56,6 +57,7 @@ export function ExportPanel() {
     try {
       const result = await saveTaskSnapshot(currentTaskId);
       const tasks = await listTasks();
+      clearDraftStroke();
       clearPromptPoints();
       setCurrentTask(result.currentTask);
       setTaskHistory(tasks);

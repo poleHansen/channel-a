@@ -7,7 +7,7 @@ export interface AutoSegmentResponse {
 }
 
 export interface InteractiveSegmentResponse {
-  working_mask_path: string;
+  working_mask_url?: string;
   preview_rgba_path?: string;
   preview_rgba?: string;
   can_undo?: boolean;
