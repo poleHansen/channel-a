@@ -12,7 +12,15 @@ interface ImageSize {
   height: number;
 }
 
+interface BrushCursor {
+  size: number;
+  tool: BrushStroke["tool"];
+  x: number;
+  y: number;
+}
+
 interface CanvasMaskLayerProps {
+  brushCursor: BrushCursor | null;
   displayBox: DisplayBox | null;
   draftStroke: BrushStroke | null;
   imageSize: ImageSize | null;
@@ -28,6 +36,7 @@ function toDisplayPoint(
 }
 
 export function CanvasMaskLayer({
+  brushCursor,
   displayBox,
   draftStroke,
   imageSize,
@@ -40,15 +49,23 @@ export function CanvasMaskLayer({
     draftStroke?.tool === "brush-remove"
       ? "rgba(166, 68, 61, 0.58)"
       : "rgba(61, 131, 103, 0.52)";
+  const cursorFill =
+    brushCursor?.tool === "brush-remove"
+      ? "rgba(197, 95, 87, 0.12)"
+      : "rgba(92, 166, 133, 0.1)";
+  const cursorStroke =
+    brushCursor?.tool === "brush-remove"
+      ? "rgba(166, 68, 61, 0.95)"
+      : "rgba(61, 131, 103, 0.92)";
 
   return (
     <div
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 rounded-[24px] bg-[linear-gradient(135deg,transparent_0%,transparent_40%,rgba(255,255,255,0.18)_100%)]"
     >
-      {displayBox && imageSize && draftStroke ? (
+      {displayBox && imageSize && (draftStroke || brushCursor) ? (
         <svg className="absolute inset-0 h-full w-full overflow-visible">
-          {draftStroke.points.map((point, index) => (
+          {draftStroke?.points.map((point, index) => (
             <circle
               cx={toDisplayPoint(point.x, imageSize.width, displayBox.left, displayBox.width)}
               cy={toDisplayPoint(point.y, imageSize.height, displayBox.top, displayBox.height)}
@@ -62,6 +79,98 @@ export function CanvasMaskLayer({
               strokeWidth="1"
             />
           ))}
+          {brushCursor ? (
+            <g>
+              <circle
+                cx={toDisplayPoint(
+                  brushCursor.x,
+                  imageSize.width,
+                  displayBox.left,
+                  displayBox.width,
+                )}
+                cy={toDisplayPoint(
+                  brushCursor.y,
+                  imageSize.height,
+                  displayBox.top,
+                  displayBox.height,
+                )}
+                fill={cursorFill}
+                r={Math.max(
+                  3,
+                  ((brushCursor.size / imageSize.width) * displayBox.width) / 2,
+                )}
+                stroke={cursorStroke}
+                strokeDasharray="4 3"
+                strokeWidth="1.5"
+              />
+              <line
+                stroke={cursorStroke}
+                strokeLinecap="round"
+                strokeWidth="1.5"
+                x1={
+                  toDisplayPoint(
+                    brushCursor.x,
+                    imageSize.width,
+                    displayBox.left,
+                    displayBox.width,
+                  ) - 6
+                }
+                x2={
+                  toDisplayPoint(
+                    brushCursor.x,
+                    imageSize.width,
+                    displayBox.left,
+                    displayBox.width,
+                  ) + 6
+                }
+                y1={toDisplayPoint(
+                  brushCursor.y,
+                  imageSize.height,
+                  displayBox.top,
+                  displayBox.height,
+                )}
+                y2={toDisplayPoint(
+                  brushCursor.y,
+                  imageSize.height,
+                  displayBox.top,
+                  displayBox.height,
+                )}
+              />
+              <line
+                stroke={cursorStroke}
+                strokeLinecap="round"
+                strokeWidth="1.5"
+                x1={toDisplayPoint(
+                  brushCursor.x,
+                  imageSize.width,
+                  displayBox.left,
+                  displayBox.width,
+                )}
+                x2={toDisplayPoint(
+                  brushCursor.x,
+                  imageSize.width,
+                  displayBox.left,
+                  displayBox.width,
+                )}
+                y1={
+                  toDisplayPoint(
+                    brushCursor.y,
+                    imageSize.height,
+                    displayBox.top,
+                    displayBox.height,
+                  ) - 6
+                }
+                y2={
+                  toDisplayPoint(
+                    brushCursor.y,
+                    imageSize.height,
+                    displayBox.top,
+                    displayBox.height,
+                  ) + 6
+                }
+              />
+            </g>
+          ) : null}
         </svg>
       ) : null}
     </div>

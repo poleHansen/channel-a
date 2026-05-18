@@ -70,6 +70,7 @@ export function EditorCanvas() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [imageSize, setImageSize] = useState<ImageSize | null>(null);
   const [isRefining, setIsRefining] = useState(false);
+  const [brushCursorPoint, setBrushCursorPoint] = useState<BrushPoint | null>(null);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
 
@@ -204,6 +205,10 @@ export function EditorCanvas() {
   }
 
   function handlePointerMove(event: ReactMouseEvent<HTMLDivElement>) {
+    if (isBrushTool(activeTool)) {
+      setBrushCursorPoint(mapClientPointToImage(event.clientX, event.clientY));
+    }
+
     if (isDrawing && draftStroke && isBrushTool(activeTool)) {
       const point = mapClientPointToImage(event.clientX, event.clientY);
       if (!point) {
@@ -240,6 +245,7 @@ export function EditorCanvas() {
       setIsDrawing(false);
 
       const releasePoint = mapClientPointToImage(event.clientX, event.clientY);
+      setBrushCursorPoint(releasePoint);
       const strokeToApply: BrushStroke = releasePoint
         ? {
             ...draftStroke,
@@ -312,6 +318,7 @@ export function EditorCanvas() {
       onClick={handleCanvasClick}
       onMouseDown={handlePointerDown}
       onMouseLeave={(event) => {
+        setBrushCursorPoint(null);
         void handlePointerUp(event);
       }}
       onMouseMove={handlePointerMove}
@@ -348,6 +355,16 @@ export function EditorCanvas() {
             }`}
           >
             <CanvasMaskLayer
+              brushCursor={
+                brushCursorPoint && isBrushTool(activeTool)
+                  ? {
+                      x: brushCursorPoint.x,
+                      y: brushCursorPoint.y,
+                      size: brushSize,
+                      tool: activeTool,
+                    }
+                  : null
+              }
               displayBox={displayBox}
               draftStroke={draftStroke}
               imageSize={imageSize}
