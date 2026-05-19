@@ -1,10 +1,19 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from app.schemas.export import CropBox
 
 
 TaskMode = Literal["auto", "manual"]
 TaskStatus = Literal["created", "ready"]
+
+
+class ExportSettings(BaseModel):
+    crop_box: CropBox | None = None
+    aspect_ratio: Literal["free", "1:1", "3:4", "4:5", "16:9"] = "free"
+    padding_percent: float = Field(default=12, ge=0, le=100)
+    size_mode: Literal["original-size", "crop-size"] = "crop-size"
 
 
 class TaskRecord(BaseModel):
@@ -27,7 +36,7 @@ class TaskMetadata(BaseModel):
     original_image_size: dict[str, int] | None
     current_mask_path: str
     background_settings: dict[str, object]
-    export_settings: dict[str, object]
+    export_settings: ExportSettings = Field(default_factory=ExportSettings)
     edit_history: list[dict[str, object]]
     history_cursor: int = -1
     edge_refinement_enabled: bool
@@ -39,6 +48,7 @@ class TaskSummary(BaseModel):
     updated_at: str
     mode: TaskMode
     status: TaskStatus
+    export_settings: ExportSettings = Field(default_factory=ExportSettings)
     preview_rgba: str
     can_undo: bool = False
     can_redo: bool = False
@@ -54,6 +64,7 @@ class TaskResponse(BaseModel):
     updated_at: str
     mode: TaskMode
     status: TaskStatus
+    export_settings: ExportSettings = Field(default_factory=ExportSettings)
     preview_rgba: str
     can_undo: bool = False
     can_redo: bool = False

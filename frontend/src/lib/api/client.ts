@@ -1,7 +1,13 @@
 import type { BrushStroke, PromptBox, PromptPoint } from "../../types/editor";
-import type { AutoSegmentResult, TaskSummary } from "../../types/task";
+import type {
+  AutoSegmentResult,
+  ExportSettings as DomainExportSettings,
+  TaskSummary,
+} from "../../types/task";
 import type {
   AutoSegmentResponse,
+  ExportRequest,
+  ExportSettings as ApiExportSettings,
   ExportResponse,
   InteractiveSegmentResponse,
   SaveTaskResponse,
@@ -37,6 +43,21 @@ async function buildApiError(
   return new Error(fallbackMessage);
 }
 
+function mapExportSettings(
+  payload?: ApiExportSettings,
+): DomainExportSettings | undefined {
+  if (!payload) {
+    return undefined;
+  }
+
+  return {
+    cropBox: payload.crop_box,
+    aspectRatio: payload.aspect_ratio,
+    paddingPercent: payload.padding_percent,
+    sizeMode: payload.size_mode,
+  };
+}
+
 function mapTaskResponse(payload: TaskResponse): AutoSegmentResult {
   const previewRgbaPath = payload.preview_rgba_path ?? payload.preview_rgba;
 
@@ -57,6 +78,7 @@ function mapTaskResponse(payload: TaskResponse): AutoSegmentResult {
     status: payload.status,
     taskId: payload.task_id,
     updatedAt: payload.updated_at,
+    exportSettings: mapExportSettings(payload.export_settings),
   };
 }
 
@@ -269,17 +291,30 @@ export async function exportSegmentResult(payload: {
   taskId: string;
   format: "rgb" | "rgba";
   backgroundHex?: string;
+  cropBox?: ExportRequest["crop_box"];
+  aspectRatio?: ExportRequest["aspect_ratio"];
+  paddingPercent?: ExportRequest["padding_percent"];
+  sizeMode?: ExportRequest["size_mode"];
 }) {
+  const requestBody: ExportRequest = {
+    task_id: payload.taskId,
+    format: payload.format,
+    background_hex: payload.backgroundHex ?? "#FFFFFF",
+    aspect_ratio: payload.aspectRatio ?? "free",
+    padding_percent: payload.paddingPercent ?? 12,
+    size_mode: payload.sizeMode ?? "crop-size",
+  };
+
+  if (payload.cropBox) {
+    requestBody.crop_box = payload.cropBox;
+  }
+
   const response = await fetch("/api/export", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      task_id: payload.taskId,
-      format: payload.format,
-      background_hex: payload.backgroundHex ?? "#FFFFFF",
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {

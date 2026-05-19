@@ -88,13 +88,13 @@ function Stop-TrackedProcess {
     $expectedPath = [System.IO.Path]::GetFullPath([string]$metadata.executable_path)
     $actualPath = if ($process.Path) { [System.IO.Path]::GetFullPath($process.Path) } else { "" }
 
-    if ($actualPath -ieq $expectedPath) {
-      Stop-Process -Id $metadata.pid -ErrorAction SilentlyContinue
-      try {
-        $process.WaitForExit(5000)
-      } catch {
-      }
-    } else {
+  if ($actualPath -ieq $expectedPath) {
+    Stop-Process -Id $metadata.pid -ErrorAction SilentlyContinue
+    try {
+      $null = $process.WaitForExit(5000)
+    } catch {
+    }
+  } else {
       Write-Warning "Skipping PID $($metadata.pid) because it no longer matches the tracked $($metadata.role) executable."
     }
   }
@@ -134,7 +134,7 @@ function Stop-PortListeners {
     if ($AllowedProcessNames -contains $process.ProcessName.ToLowerInvariant()) {
       Stop-Process -Id $processId -ErrorAction SilentlyContinue
       try {
-        $process.WaitForExit(5000)
+        $null = $process.WaitForExit(5000)
       } catch {
       }
     }
@@ -154,25 +154,6 @@ function Start-DetachedProcess {
     -WorkingDirectory $WorkingDirectory `
     -WindowStyle Hidden `
     -PassThru
-}
-
-function Start-PowerShellWorker {
-  param(
-    [string]$WorkingDirectory,
-    [string]$Command
-  )
-
-  $powershellExecutable = (Get-Command powershell -ErrorAction Stop).Source
-  return Start-DetachedProcess `
-    -ExecutablePath $powershellExecutable `
-    -Arguments @(
-      "-NoProfile",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-Command",
-      "Set-Location -LiteralPath '$($WorkingDirectory -replace '''', '''''')'; $Command"
-    ) `
-    -WorkingDirectory $WorkingDirectory
 }
 
 function Wait-ForUrl {
@@ -199,8 +180,9 @@ Stop-TrackedProcess -MetadataPath $frontendPidFile
 Stop-PortListeners -Port 8000 -AllowedProcessNames @("python", "powershell", "pwsh")
 Stop-PortListeners -Port 7860 -AllowedProcessNames @("node")
 
-$backendCommand = "& '$($backendExecutable -replace '''', '''''')' -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
-$backend = Start-PowerShellWorker `
+$backend = Start-DetachedProcess `
+  -ExecutablePath $backendExecutable `
+  -Arguments @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000") `
   -WorkingDirectory $backendWorkdir
 
 $frontend = Start-DetachedProcess `
@@ -208,7 +190,17 @@ $frontend = Start-DetachedProcess `
   -Arguments @($frontendVite, "--host", "127.0.0.1", "--port", "7860") `
   -WorkingDirectory $frontendWorkdir
 
-Write-ProcessMetadata -MetadataPath $backendPidFile -Process $backend -Role "backend" -Workdir $backendWorkdir -ExecutablePath ((Get-Command powershell -ErrorAction Stop).Source)
+Start-Sleep -Seconds 2
+
+if ($null -eq (Get-Process -Id $backend.Id -ErrorAction SilentlyContinue)) {
+  throw "Backend exited immediately after launch. Run `"..\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000`" from `backend/` to inspect the startup failure."
+}
+
+if ($null -eq (Get-Process -Id $frontend.Id -ErrorAction SilentlyContinue)) {
+  throw "Frontend exited immediately after launch. Run `npm run dev` from `frontend/` to inspect the startup failure."
+}
+
+Write-ProcessMetadata -MetadataPath $backendPidFile -Process $backend -Role "backend" -Workdir $backendWorkdir -ExecutablePath $backendExecutable
 Write-ProcessMetadata -MetadataPath $frontendPidFile -Process $frontend -Role "frontend" -Workdir $frontendWorkdir -ExecutablePath $frontendExecutable
 
 $backendReady = Wait-ForUrl -Url "http://127.0.0.1:8000/api/health"

@@ -8,7 +8,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 class Settings(BaseSettings):
     host: str = "127.0.0.1"
-    port: int = 7860
+    port: int = 8000
     outputs_dir: Path = ROOT_DIR / "outputs"
     models_dir: Path = ROOT_DIR / "models"
 

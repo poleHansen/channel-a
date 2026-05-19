@@ -48,7 +48,7 @@ function Stop-TrackedProcess {
   if ($actualPath -ieq $expectedPath) {
     Stop-Process -Id $metadata.pid -ErrorAction SilentlyContinue
     try {
-      $process.WaitForExit(5000)
+      $null = $process.WaitForExit(5000)
     } catch {
     }
   } else {
@@ -90,7 +90,7 @@ function Stop-PortListeners {
     if ($AllowedProcessNames -contains $process.ProcessName.ToLowerInvariant()) {
       Stop-Process -Id $processId -ErrorAction SilentlyContinue
       try {
-        $process.WaitForExit(5000)
+        $null = $process.WaitForExit(5000)
       } catch {
       }
     }

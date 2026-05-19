@@ -8,6 +8,7 @@ export function FloatingToolBar() {
   const brushSize = useEditorStore((state) => state.brushSize);
   const canRedo = useTaskStore((state) => state.canRedo);
   const canUndo = useTaskStore((state) => state.canUndo);
+  const clearExportBox = useEditorStore((state) => state.clearExportBox);
   const clearDraftStroke = useEditorStore((state) => state.clearDraftStroke);
   const clearPromptPoints = useEditorStore((state) => state.clearPromptPoints);
   const setActiveTool = useEditorStore((state) => state.setActiveTool);
@@ -21,6 +22,7 @@ export function FloatingToolBar() {
     { key: "keep-point", label: "Keep" },
     { key: "remove-point", label: "Remove" },
     { key: "box", label: "Box" },
+    { key: "export-box", label: "Export Box" },
   ] as const;
 
   async function handleAutoCutout() {
@@ -110,6 +112,7 @@ export function FloatingToolBar() {
           disabled={!hasTask}
           key={tool.key}
           onClick={() => {
+            clearExportBox();
             clearDraftStroke();
             setActiveTool(tool.key);
           }}
@@ -128,6 +131,7 @@ export function FloatingToolBar() {
           disabled={!hasTask}
           key={tool}
           onClick={() => {
+            clearExportBox();
             clearDraftStroke();
             setActiveTool(tool);
           }}
@@ -153,6 +157,7 @@ export function FloatingToolBar() {
         className="clay-tool-button clay-button rounded-full px-3 py-2 text-sm font-medium text-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-50"
         disabled={!hasTask || isAutoCuttingOut}
         onClick={() => {
+          clearExportBox();
           clearDraftStroke();
           clearPromptPoints();
         }}

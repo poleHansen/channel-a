@@ -3,7 +3,14 @@ import { useEffect, useRef, useState } from "react";
 
 import { applyBrushStroke, refineInteractiveSegment } from "../../lib/api/client";
 import { CanvasMaskLayer } from "./CanvasMaskLayer";
-import type { BrushPoint, BrushStroke, PromptBox, PromptPoint } from "../../types/editor";
+import type {
+  BrushPoint,
+  BrushStroke,
+  ExportAspectRatio,
+  ExportBox,
+  PromptBox,
+  PromptPoint,
+} from "../../types/editor";
 import { useEditorStore } from "../../state/editorStore";
 import { useTaskStore } from "../../state/taskStore";
 
@@ -48,6 +55,72 @@ function withCacheBust(path: string): string {
   return `${path}${separator}v=${Date.now()}`;
 }
 
+function normalizeBox(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+): ExportBox {
+  return {
+    x0: Math.min(start.x, end.x),
+    y0: Math.min(start.y, end.y),
+    x1: Math.max(start.x, end.x),
+    y1: Math.max(start.y, end.y),
+  };
+}
+
+function parseAspectRatio(aspectRatio: ExportAspectRatio): number | null {
+  if (aspectRatio === "free") {
+    return null;
+  }
+
+  const [width, height] = aspectRatio.split(":").map(Number);
+  if (!width || !height) {
+    return null;
+  }
+
+  return width / height;
+}
+
+function constrainPointToAspectRatio(
+  start: { x: number; y: number },
+  current: { x: number; y: number },
+  imageSize: ImageSize | null,
+  aspectRatio: ExportAspectRatio,
+) {
+  const ratio = parseAspectRatio(aspectRatio);
+  if (!ratio || !imageSize) {
+    return current;
+  }
+
+  const dx = current.x - start.x;
+  const dy = current.y - start.y;
+
+  if (dx === 0 && dy === 0) {
+    return current;
+  }
+
+  const signX = dx < 0 ? -1 : 1;
+  const signY = dy < 0 ? -1 : 1;
+  const maxWidth = signX > 0 ? imageSize.width - start.x : start.x;
+  const maxHeight = signY > 0 ? imageSize.height - start.y : start.y;
+  const rawWidth = Math.abs(dx);
+  const rawHeight = Math.abs(dy);
+  const widthDriven = rawHeight === 0 || rawWidth / Math.max(rawHeight, 1) >= ratio;
+
+  let width = widthDriven ? rawWidth : rawHeight * ratio;
+  let height = widthDriven ? rawWidth / ratio : rawHeight;
+
+  const widthScale = width > 0 ? maxWidth / width : 1;
+  const heightScale = height > 0 ? maxHeight / height : 1;
+  const scale = Math.min(1, widthScale, heightScale);
+  width *= scale;
+  height *= scale;
+
+  return {
+    x: Math.round(start.x + signX * width),
+    y: Math.round(start.y + signY * height),
+  };
+}
+
 export function EditorCanvas() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const activeTool = useEditorStore((state) => state.activeTool);
@@ -56,10 +129,13 @@ export function EditorCanvas() {
   const brushSize = useEditorStore((state) => state.brushSize);
   const clearDraftStroke = useEditorStore((state) => state.clearDraftStroke);
   const draftStroke = useEditorStore((state) => state.draftStroke);
+  const exportAspectRatio = useEditorStore((state) => state.exportAspectRatio);
+  const exportBox = useEditorStore((state) => state.exportBox);
   const isApplyingBrush = useEditorStore((state) => state.isApplyingBrush);
   const isDrawing = useEditorStore((state) => state.isDrawing);
   const promptPoints = useEditorStore((state) => state.promptPoints);
   const setDraftStroke = useEditorStore((state) => state.setDraftStroke);
+  const setExportBox = useEditorStore((state) => state.setExportBox);
   const setIsApplyingBrush = useEditorStore((state) => state.setIsApplyingBrush);
   const setIsDrawing = useEditorStore((state) => state.setIsDrawing);
   const currentTaskId = useTaskStore((state) => state.currentTaskId);
@@ -151,7 +227,13 @@ export function EditorCanvas() {
   }
 
   async function handleCanvasClick(event: ReactMouseEvent<HTMLDivElement>) {
-    if (!previewRgbaPath || activeTool === "box" || isBrushTool(activeTool) || isRefining) {
+    if (
+      !previewRgbaPath ||
+      activeTool === "box" ||
+      activeTool === "export-box" ||
+      isBrushTool(activeTool) ||
+      isRefining
+    ) {
       return;
     }
 
@@ -191,7 +273,7 @@ export function EditorCanvas() {
       return;
     }
 
-    if (activeTool !== "box") {
+    if (activeTool !== "box" && activeTool !== "export-box") {
       return;
     }
 
@@ -237,7 +319,11 @@ export function EditorCanvas() {
       return;
     }
 
-    setDragCurrent(point);
+    setDragCurrent(
+      activeTool === "export-box"
+        ? constrainPointToAspectRatio(dragStart, point, imageSize, exportAspectRatio)
+        : point,
+    );
   }
 
   async function handlePointerUp(event: ReactMouseEvent<HTMLDivElement>) {
@@ -273,7 +359,11 @@ export function EditorCanvas() {
       return;
     }
 
-    if (!dragStart || activeTool !== "box" || isRefining) {
+    if (
+      !dragStart ||
+      (activeTool !== "box" && activeTool !== "export-box") ||
+      isRefining
+    ) {
       return;
     }
 
@@ -287,14 +377,18 @@ export function EditorCanvas() {
       return;
     }
 
-    const box = {
-      x0: Math.min(start.x, point.x),
-      y0: Math.min(start.y, point.y),
-      x1: Math.max(start.x, point.x),
-      y1: Math.max(start.y, point.y),
-    };
+    const nextPoint =
+      activeTool === "export-box"
+        ? constrainPointToAspectRatio(start, point, imageSize, exportAspectRatio)
+        : point;
+    const box = normalizeBox(start, nextPoint);
 
     if (box.x1 - box.x0 < 2 || box.y1 - box.y0 < 2) {
+      return;
+    }
+
+    if (activeTool === "export-box") {
+      setExportBox(box);
       return;
     }
 
@@ -303,12 +397,7 @@ export function EditorCanvas() {
 
   const dragBox =
     dragStart && dragCurrent
-      ? {
-          left: Math.min(dragStart.x, dragCurrent.x),
-          top: Math.min(dragStart.y, dragCurrent.y),
-          width: Math.abs(dragCurrent.x - dragStart.x),
-          height: Math.abs(dragCurrent.y - dragStart.y),
-        }
+      ? normalizeBox(dragStart, dragCurrent)
       : null;
 
   return (
@@ -347,7 +436,7 @@ export function EditorCanvas() {
           <div
             aria-hidden="true"
             className={`absolute inset-0 rounded-[30px] ${
-              activeTool === "box"
+              activeTool === "box" || activeTool === "export-box"
                 ? "cursor-crosshair"
                 : isBrushTool(activeTool)
                   ? "cursor-none"
@@ -367,6 +456,8 @@ export function EditorCanvas() {
               }
               displayBox={displayBox}
               draftStroke={draftStroke}
+              exportBox={exportBox}
+              exportDraftBox={activeTool === "export-box" ? dragBox : null}
               imageSize={imageSize}
             />
             {displayBox && imageSize
@@ -385,17 +476,17 @@ export function EditorCanvas() {
                   />
                 ))
               : null}
-            {displayBox && imageSize && dragBox ? (
+            {displayBox && imageSize && dragBox && activeTool === "box" ? (
               <span
                 className="absolute border-2 border-[var(--text)] bg-white/10"
                 style={{
                   left:
                     displayBox.left +
-                    (dragBox.left / imageSize.width) * displayBox.width,
+                    (dragBox.x0 / imageSize.width) * displayBox.width,
                   top:
-                    displayBox.top + (dragBox.top / imageSize.height) * displayBox.height,
-                  width: (dragBox.width / imageSize.width) * displayBox.width,
-                  height: (dragBox.height / imageSize.height) * displayBox.height,
+                    displayBox.top + (dragBox.y0 / imageSize.height) * displayBox.height,
+                  width: ((dragBox.x1 - dragBox.x0) / imageSize.width) * displayBox.width,
+                  height: ((dragBox.y1 - dragBox.y0) / imageSize.height) * displayBox.height,
                 }}
               />
             ) : null}

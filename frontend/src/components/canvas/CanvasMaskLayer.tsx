@@ -1,4 +1,4 @@
-import type { BrushStroke } from "../../types/editor";
+import type { BrushStroke, ExportBox } from "../../types/editor";
 
 interface DisplayBox {
   left: number;
@@ -23,6 +23,8 @@ interface CanvasMaskLayerProps {
   brushCursor: BrushCursor | null;
   displayBox: DisplayBox | null;
   draftStroke: BrushStroke | null;
+  exportBox: ExportBox | null;
+  exportDraftBox: ExportBox | null;
   imageSize: ImageSize | null;
 }
 
@@ -39,6 +41,8 @@ export function CanvasMaskLayer({
   brushCursor,
   displayBox,
   draftStroke,
+  exportBox,
+  exportDraftBox,
   imageSize,
 }: CanvasMaskLayerProps) {
   const strokeColor =
@@ -58,13 +62,57 @@ export function CanvasMaskLayer({
       ? "rgba(166, 68, 61, 0.95)"
       : "rgba(61, 131, 103, 0.92)";
 
+  function renderExportRect(box: ExportBox, key: string, isDraft: boolean) {
+    if (!displayBox || !imageSize) {
+      return null;
+    }
+
+    const left = toDisplayPoint(box.x0, imageSize.width, displayBox.left, displayBox.width);
+    const top = toDisplayPoint(box.y0, imageSize.height, displayBox.top, displayBox.height);
+    const right = toDisplayPoint(box.x1, imageSize.width, displayBox.left, displayBox.width);
+    const bottom = toDisplayPoint(box.y1, imageSize.height, displayBox.top, displayBox.height);
+
+    return (
+      <g key={key}>
+        <rect
+          fill={isDraft ? "rgba(38, 130, 255, 0.1)" : "rgba(38, 130, 255, 0.12)"}
+          height={Math.max(0, bottom - top)}
+          rx="10"
+          ry="10"
+          stroke={isDraft ? "rgba(38, 130, 255, 0.95)" : "rgba(17, 95, 204, 0.98)"}
+          strokeDasharray={isDraft ? "8 6" : "10 5"}
+          strokeWidth={isDraft ? "2" : "2.5"}
+          width={Math.max(0, right - left)}
+          x={left}
+          y={top}
+        />
+        {!isDraft ? (
+          <rect
+            fill="none"
+            height={Math.max(0, bottom - top) + 10}
+            rx="14"
+            ry="14"
+            stroke="rgba(255, 255, 255, 0.55)"
+            strokeDasharray="3 9"
+            strokeWidth="1"
+            width={Math.max(0, right - left) + 10}
+            x={left - 5}
+            y={top - 5}
+          />
+        ) : null}
+      </g>
+    );
+  }
+
   return (
     <div
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 rounded-[24px] bg-[linear-gradient(135deg,transparent_0%,transparent_40%,rgba(255,255,255,0.18)_100%)]"
     >
-      {displayBox && imageSize && (draftStroke || brushCursor) ? (
+      {displayBox && imageSize && (draftStroke || brushCursor || exportBox || exportDraftBox) ? (
         <svg className="absolute inset-0 h-full w-full overflow-visible">
+          {exportBox ? renderExportRect(exportBox, "export-box", false) : null}
+          {exportDraftBox ? renderExportRect(exportDraftBox, "export-draft-box", true) : null}
           {draftStroke?.points.map((point, index) => (
             <circle
               cx={toDisplayPoint(point.x, imageSize.width, displayBox.left, displayBox.width)}

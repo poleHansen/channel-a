@@ -7,7 +7,7 @@ from uuid import uuid4
 from PIL import Image
 from pydantic import ValidationError
 
-from app.schemas.tasks import TaskMetadata, TaskMode, TaskRecord
+from app.schemas.tasks import ExportSettings, TaskMetadata, TaskMode, TaskRecord
 
 TASK_METADATA_READ_ERRORS = (
     FileNotFoundError,
@@ -190,8 +190,11 @@ class TaskStore:
         temp_project_json_path = project_json_path.with_name(
             f"{project_json_path.name}.{uuid4().hex}.tmp"
         )
+        payload = metadata.model_dump(mode="json")
+        if metadata.export_settings == ExportSettings():
+            payload["export_settings"] = {}
         temp_project_json_path.write_text(
-            json.dumps(metadata.model_dump(mode="json"), indent=2),
+            json.dumps(payload, indent=2),
             encoding="utf-8",
         )
         temp_project_json_path.replace(project_json_path)
@@ -199,8 +202,9 @@ class TaskStore:
     def update_metadata(self, task_id: str, **changes: object) -> TaskMetadata:
         record = self.build_task_record(task_id)
         metadata = self.read_metadata(task_id)
-        updated_metadata = metadata.model_copy(
-            update={
+        updated_metadata = TaskMetadata.model_validate(
+            {
+                **metadata.model_dump(mode="python"),
                 **changes,
                 "updated_at": utc_now_iso(),
             }

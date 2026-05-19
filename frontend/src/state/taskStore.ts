@@ -1,10 +1,20 @@
 import { create } from "zustand";
 
+import { useEditorStore } from "./editorStore";
 import type { AutoSegmentResult, TaskSummary } from "../types/task";
 
 function withCacheBust(path: string): string {
   const separator = path.includes("?") ? "&" : "?";
   return `${path}${separator}v=${Date.now()}`;
+}
+
+function syncEditorExportSettings(exportSettings?: AutoSegmentResult["exportSettings"]): void {
+  useEditorStore.setState({
+    exportAspectRatio: exportSettings?.aspectRatio ?? "free",
+    exportBox: exportSettings?.cropBox ?? null,
+    exportPadding: exportSettings?.paddingPercent ?? 12,
+    exportSizeMode: exportSettings?.sizeMode ?? "crop-size",
+  });
 }
 
 interface TaskState {
@@ -30,13 +40,15 @@ export const useTaskStore = create<TaskState>((set) => ({
   previewRgbaPath: null,
   selectedTaskIds: [],
   taskHistory: [],
-  clearAutoSegmentResult: () =>
+  clearAutoSegmentResult: () => {
+    syncEditorExportSettings();
     set({
       canRedo: false,
       canUndo: false,
       currentTaskId: null,
       previewRgbaPath: null,
-    }),
+    });
+  },
   clearSelectedTasks: () => set({ selectedTaskIds: [] }),
   setEditAvailability: (canUndo, canRedo) => set({ canUndo, canRedo }),
   setPreviewRgbaPath: (previewRgbaPath) => set({ previewRgbaPath }),
@@ -47,12 +59,14 @@ export const useTaskStore = create<TaskState>((set) => ({
         : [...state.selectedTaskIds, taskId],
     })),
   setTaskHistory: (taskHistory) => set({ taskHistory }),
-  setCurrentTask: (task) =>
+  setCurrentTask: (task) => {
+    syncEditorExportSettings(task.exportSettings);
     set((state) => {
       const summary: TaskSummary = {
         canRedo: task.canRedo,
         canUndo: task.canUndo,
         createdAt: task.createdAt,
+        exportSettings: task.exportSettings,
         mode: task.mode,
         previewRgbaPath: task.previewRgbaPath,
         status: task.status,
@@ -74,5 +88,6 @@ export const useTaskStore = create<TaskState>((set) => ({
         ),
         taskHistory: nextHistory,
       };
-    }),
+    });
+  },
 }));

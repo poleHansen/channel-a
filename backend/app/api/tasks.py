@@ -203,6 +203,7 @@ def _task_response_from_metadata(
         updated_at=metadata.updated_at,
         mode=metadata.mode,
         status=metadata.status,
+        export_settings=metadata.export_settings,
         preview_rgba=_build_output_url(task_dir, "preview_rgba.png", outputs_dir),
         can_undo=TaskStore.can_undo(metadata),
         can_redo=TaskStore.can_redo(metadata),
@@ -346,6 +347,7 @@ def list_tasks(request: Request) -> TaskListResponse:
             updated_at=metadata.updated_at,
             mode=metadata.mode,
             status=metadata.status,
+            export_settings=metadata.export_settings,
             preview_rgba=_build_output_url(
                 task_store.base_dir / metadata.task_id,
                 "preview_rgba.png",

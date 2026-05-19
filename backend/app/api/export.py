@@ -31,7 +31,15 @@ def export_task(payload: ExportRequest, request: Request) -> ExportResponse:
 
     if payload.format == "rgba":
         output_path = task_dir / "result_rgba.png"
-        export_rgba(source_path, mask_path, output_path)
+        export_rgba(
+            source_path,
+            mask_path,
+            output_path,
+            crop_box=payload.crop_box,
+            aspect_ratio=payload.aspect_ratio,
+            padding_percent=payload.padding_percent,
+            size_mode=payload.size_mode,
+        )
     else:
         output_path = task_dir / "result_rgb.jpg"
         export_rgb_white(
@@ -39,6 +47,10 @@ def export_task(payload: ExportRequest, request: Request) -> ExportResponse:
             mask_path,
             output_path,
             payload.background_hex,
+            crop_box=payload.crop_box,
+            aspect_ratio=payload.aspect_ratio,
+            padding_percent=payload.padding_percent,
+            size_mode=payload.size_mode,
         )
 
     return ExportResponse(
