@@ -15,8 +15,9 @@ class RMBGAdapter:
     )
     _WEIGHT_FILES = ("model.safetensors", "pytorch_model.bin")
 
-    def __init__(self, model_dir: Path = Path("models")) -> None:
+    def __init__(self, model_dir: Path = Path("models"), force_cpu: bool = False) -> None:
         self.model_dir = model_dir
+        self.force_cpu = force_cpu
         self._device: Any | None = None
         self._model: Any | None = None
         self._transform: Any | None = None
@@ -68,7 +69,9 @@ class RMBGAdapter:
             import torch
             from torchvision import transforms
 
-            preferred_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            preferred_device = torch.device(
+                "cpu" if self.force_cpu else ("cuda" if torch.cuda.is_available() else "cpu")
+            )
 
             try:
                 self._model = self._load_model(model_path, preferred_device)
@@ -76,7 +79,7 @@ class RMBGAdapter:
             except RuntimeError as exc:
                 if getattr(preferred_device, "type", None) != "cuda" or not self._is_cuda_oom(exc):
                     raise
-                if torch.cuda.is_available():
+                if not self.force_cpu and torch.cuda.is_available():
                     torch.cuda.empty_cache()
                 cpu_device = torch.device("cpu")
                 self._model = self._load_model(model_path, cpu_device)

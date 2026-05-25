@@ -1,4 +1,4 @@
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -12,14 +12,19 @@ from app.schemas.segment import PromptPoint
 class SAMAdapter:
     _MODEL_DIR_NAME = "sam2.1"
     _MODEL_VARIANTS = (
-        ("sam2.1_hiera_large.pt", "sam2.1_hiera_l.yaml"),
-        ("sam2.1_hiera_base_plus.pt", "sam2.1_hiera_b+.yaml"),
-        ("sam2.1_hiera_small.pt", "sam2.1_hiera_s.yaml"),
-        ("sam2.1_hiera_tiny.pt", "sam2.1_hiera_t.yaml"),
+        ("sam2.1_hiera_large.pt", "sam2.1_hiera_l.yaml", "configs/sam2.1/sam2.1_hiera_l.yaml"),
+        (
+            "sam2.1_hiera_base_plus.pt",
+            "sam2.1_hiera_b+.yaml",
+            "configs/sam2.1/sam2.1_hiera_b+.yaml",
+        ),
+        ("sam2.1_hiera_small.pt", "sam2.1_hiera_s.yaml", "configs/sam2.1/sam2.1_hiera_s.yaml"),
+        ("sam2.1_hiera_tiny.pt", "sam2.1_hiera_t.yaml", "configs/sam2.1/sam2.1_hiera_t.yaml"),
     )
 
-    def __init__(self, model_dir: Path = Path("models")) -> None:
+    def __init__(self, model_dir: Path = Path("models"), force_cpu: bool = False) -> None:
         self.model_dir = model_dir
+        self.force_cpu = force_cpu
         self._device: Any | None = None
         self._model: Any | None = None
         self._load_lock = Lock()
@@ -29,16 +34,16 @@ class SAMAdapter:
             return self.model_dir
         return self.model_dir / self._MODEL_DIR_NAME
 
-    def _resolve_model_assets(self) -> tuple[Path, Path] | None:
+    def _resolve_model_assets(self) -> tuple[Path, str] | None:
         model_path = self._resolve_model_dir()
-        for checkpoint_name, config_name in self._MODEL_VARIANTS:
+        for checkpoint_name, config_name, hydra_config_name in self._MODEL_VARIANTS:
             checkpoint_path = model_path / checkpoint_name
             direct_config_path = model_path / config_name
             nested_config_path = model_path / "configs" / "sam2.1" / config_name
             if checkpoint_path.exists() and direct_config_path.exists():
-                return checkpoint_path, direct_config_path
+                return checkpoint_path, hydra_config_name
             if checkpoint_path.exists() and nested_config_path.exists():
-                return checkpoint_path, nested_config_path
+                return checkpoint_path, hydra_config_name
         return None
 
     def _ensure_loaded(self) -> None:
@@ -60,12 +65,32 @@ class SAMAdapter:
             import torch
             from sam2.build_sam import build_sam2
 
-            self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            self._model = build_sam2(
-                str(config_path),
-                str(checkpoint_path),
-                device=self._device,
+            self._device = torch.device(
+                "cpu" if self.force_cpu else ("cuda" if torch.cuda.is_available() else "cpu")
             )
+            with self._force_cpu_cuda_probe_off(torch):
+                self._model = build_sam2(
+                    str(config_path),
+                    str(checkpoint_path),
+                    device=self._device,
+                )
+
+    @contextmanager
+    def _force_cpu_cuda_probe_off(self, torch: Any):
+        if not self.force_cpu or not hasattr(torch, "cuda"):
+            yield
+            return
+
+        original_is_available = getattr(torch.cuda, "is_available", None)
+        if original_is_available is None:
+            yield
+            return
+
+        torch.cuda.is_available = lambda: False
+        try:
+            yield
+        finally:
+            torch.cuda.is_available = original_is_available
 
     def _prepare_point_prompts(
         self, points: list[PromptPoint]

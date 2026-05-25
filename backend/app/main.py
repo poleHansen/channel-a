@@ -16,10 +16,14 @@ def create_app(
     resolved_settings = settings or get_settings()
     app = FastAPI(title="Cutout Web Tool API")
     app.state.settings = resolved_settings
-    app.state.models = models or ModelRegistry(model_dir=resolved_settings.models_dir)
+    app.state.models = models or ModelRegistry(
+        model_dir=resolved_settings.models_dir,
+        force_cpu=resolved_settings.force_cpu,
+    )
     app.state.startup_checks = run_startup_checks(
         models_dir=resolved_settings.models_dir,
         outputs_dir=resolved_settings.outputs_dir,
+        force_cpu=resolved_settings.force_cpu,
     )
     app.mount(
         "/outputs",

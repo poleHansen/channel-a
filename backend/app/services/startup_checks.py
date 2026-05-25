@@ -1,4 +1,6 @@
 from pathlib import Path
+import subprocess
+import sys
 from tempfile import NamedTemporaryFile
 
 RMBG_MODEL_DIR_NAME = "rmbg-2.0"
@@ -27,15 +29,26 @@ def _is_directory_writable(directory: Path) -> bool:
         return False
 
 
-def _gpu_available() -> bool:
-    try:
-        import torch
-    except Exception:
+def _gpu_available(force_cpu: bool = False) -> bool:
+    if force_cpu:
         return False
     try:
-        return bool(torch.cuda.is_available())
-    except Exception:
+        probe = subprocess.run(
+            [
+                sys.executable,
+                "-X",
+                "faulthandler",
+                "-c",
+                "import torch; raise SystemExit(0 if torch.cuda.is_available() else 1)",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
         return False
+    return probe.returncode == 0
 
 
 def get_required_model_dirs(models_dir: Path) -> list[Path]:
@@ -101,11 +114,15 @@ def _prepare_outputs_dir(outputs_dir: Path) -> bool:
     return _is_directory_writable(outputs_dir)
 
 
-def run_startup_checks(models_dir: Path, outputs_dir: Path) -> dict[str, object]:
+def run_startup_checks(
+    models_dir: Path,
+    outputs_dir: Path,
+    force_cpu: bool = False,
+) -> dict[str, object]:
     missing = _missing_model_entries(models_dir)
     outputs_writable = _prepare_outputs_dir(outputs_dir)
     return {
-        "gpu_available": _gpu_available(),
+        "gpu_available": _gpu_available(force_cpu=force_cpu),
         "models_ready": len(missing) == 0,
         "outputs_writable": outputs_writable,
         "missing_model_dirs": missing,

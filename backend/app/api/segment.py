@@ -172,6 +172,10 @@ def interactive_segment(
                 if missing_name is not None:
                     raise HTTPException(status_code=404, detail=f"{missing_name} not found") from exc
                 raise HTTPException(status_code=500, detail=str(exc)) from exc
+            except HTTPException:
+                raise
+            except Exception as exc:
+                raise HTTPException(status_code=500, detail=f"Interactive refinement failed: {exc}") from exc
 
             if working_mask_input_path.read_bytes() == original_mask_bytes:
                 return InteractiveSegmentResponse(

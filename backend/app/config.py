@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     port: int = 8000
     outputs_dir: Path = ROOT_DIR / "outputs"
     models_dir: Path = ROOT_DIR / "models"
+    force_cpu: bool = False
 
     model_config = SettingsConfigDict(env_prefix="CUTOUT_", extra="ignore")
 

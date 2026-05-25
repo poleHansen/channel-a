@@ -156,6 +156,53 @@ function Start-DetachedProcess {
     -PassThru
 }
 
+function Start-LoggedProcess {
+  param(
+    [string]$ExecutablePath,
+    [string[]]$Arguments,
+    [string]$WorkingDirectory,
+    [string]$StdoutPath,
+    [string]$StderrPath
+  )
+
+  $powershellExecutable = (Get-Command powershell -ErrorAction Stop).Source
+  $joinedArguments = Join-ProcessArguments -Arguments $Arguments
+  $command = "Set-Location -LiteralPath '$($WorkingDirectory -replace '''', '''''')'; & '$($ExecutablePath -replace '''', '''''')' $joinedArguments 1>> '$($StdoutPath -replace '''', '''''')' 2>> '$($StderrPath -replace '''', '''''')'"
+
+  return Start-Process `
+    -FilePath $powershellExecutable `
+    -ArgumentList @(
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-Command",
+      $command
+    ) `
+    -WorkingDirectory $WorkingDirectory `
+    -WindowStyle Hidden `
+    -PassThru
+}
+
+function Test-CudaRuntimeHealthy {
+  param(
+    [string]$PythonExecutable
+  )
+
+  $probe = Start-Process `
+    -FilePath $PythonExecutable `
+    -ArgumentList @("-X", "faulthandler", "-c", "import torch; raise SystemExit(0 if torch.cuda.is_available() else 1)") `
+    -WorkingDirectory $backendWorkdir `
+    -WindowStyle Hidden `
+    -PassThru
+
+  if (-not $probe.WaitForExit(5000)) {
+    Stop-Process -Id $probe.Id -ErrorAction SilentlyContinue
+    return $false
+  }
+
+  return ($probe.ExitCode -eq 0)
+}
+
 function Wait-ForUrl {
   param(
     [string]$Url,
@@ -180,10 +227,19 @@ Stop-TrackedProcess -MetadataPath $frontendPidFile
 Stop-PortListeners -Port 8000 -AllowedProcessNames @("python", "powershell", "pwsh")
 Stop-PortListeners -Port 7860 -AllowedProcessNames @("node")
 
-$backend = Start-DetachedProcess `
+if (-not $env:CUTOUT_FORCE_CPU) {
+  if (-not (Test-CudaRuntimeHealthy -PythonExecutable $backendExecutable)) {
+    $env:CUTOUT_FORCE_CPU = "1"
+    Write-Warning "CUDA probe failed; starting backend with CUTOUT_FORCE_CPU=1."
+  }
+}
+
+$backend = Start-LoggedProcess `
   -ExecutablePath $backendExecutable `
   -Arguments @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000") `
-  -WorkingDirectory $backendWorkdir
+  -WorkingDirectory $backendWorkdir `
+  -StdoutPath $backendStdout `
+  -StderrPath $backendStderr
 
 $frontend = Start-DetachedProcess `
   -ExecutablePath $frontendExecutable `
